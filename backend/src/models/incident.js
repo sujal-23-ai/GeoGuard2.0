@@ -35,6 +35,8 @@ const incidentSchema = new mongoose.Schema(
     upvotes: { type: Number, default: 0, min: 0 },
     downvotes: { type: Number, default: 0, min: 0 },
     voters: [{ userId: mongoose.Schema.Types.ObjectId, voteType: { type: String, enum: ['up', 'down'] } }],
+    confirmCount: { type: Number, default: 0 },
+    confirmedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     isVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true, index: true },
     expiresAt: { type: Date, default: () => new Date(Date.now() + 72 * 60 * 60 * 1000) },
@@ -60,7 +62,7 @@ incidentSchema.index({ severity: -1 });
 incidentSchema.index({ city: 1 });
 incidentSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-incidentSchema.statics.findNearby = async function ({ lng, lat, radiusKm = 10, category, severity, limit = 50 }) {
+incidentSchema.statics.findNearby = async function ({ lng, lat, radiusKm = 10, category, severity, since, limit = 50 }) {
   const filter = {
     isActive: true,
     location: {
@@ -73,6 +75,7 @@ incidentSchema.statics.findNearby = async function ({ lng, lat, radiusKm = 10, c
 
   if (category) filter.category = category;
   if (severity) filter.severity = { $gte: severity };
+  if (since) filter.createdAt = { $gte: new Date(since) };
 
   return this.find(filter)
     .limit(limit)
@@ -118,6 +121,19 @@ incidentSchema.statics.vote = async function (incidentId, userId, voteType) {
 
   await incident.save();
   return { upvotes: incident.upvotes, downvotes: incident.downvotes };
+};
+
+incidentSchema.statics.confirm = async function (incidentId, userId) {
+  const incident = await this.findById(incidentId);
+  if (!incident) throw new Error('Incident not found');
+
+  const alreadyConfirmed = incident.confirmedBy.some((id) => id.toString() === userId.toString());
+  if (alreadyConfirmed) return { confirmCount: incident.confirmCount, alreadyConfirmed: true };
+
+  incident.confirmedBy.push(userId);
+  incident.confirmCount = incident.confirmedBy.length;
+  await incident.save();
+  return { confirmCount: incident.confirmCount, alreadyConfirmed: false };
 };
 
 incidentSchema.statics.getAnalytics = async function ({ days = 7, city } = {}) {

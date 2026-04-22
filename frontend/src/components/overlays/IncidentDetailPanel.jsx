@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ThumbsUp, ThumbsDown, MapPin, Clock, User, Shield, Eye, EyeOff, Play, ChevronLeft, ChevronRight, Brain } from 'lucide-react';
+import { X, ThumbsUp, ThumbsDown, MapPin, Clock, User, Shield, Eye, EyeOff, Play, ChevronLeft, ChevronRight, Brain, RefreshCw } from 'lucide-react';
 import { SeverityBadge, CategoryBadge } from '../ui/Badge';
 import Button from '../ui/Button';
 import { getCategory, timeAgo } from '../../utils/helpers';
-import { useVoteIncident } from '../../hooks/useIncidents';
+import { useVoteIncident, useConfirmIncident } from '../../hooks/useIncidents';
 import useAppStore from '../../store/useAppStore';
 import { getOptimizedUrl } from '../../utils/helpers';
 
@@ -138,6 +138,7 @@ function AiConfidence({ score, riskLevel }) {
 export default function IncidentDetailPanel({ incident, onClose }) {
   const { isAuthenticated } = useAppStore();
   const voteMutation = useVoteIncident();
+  const confirmMutation = useConfirmIncident();
   const cat = getCategory(incident?.category);
 
   const handleVote = (voteType) => {
@@ -264,8 +265,24 @@ export default function IncidentDetailPanel({ incident, onClose }) {
                 </Button>
               </div>
 
+              {isAuthenticated && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => confirmMutation.mutate(incident.id || incident._id)}
+                  disabled={confirmMutation.isPending}
+                  className="w-full text-amber-400 hover:bg-amber-400/10 border border-amber-400/20 hover:border-amber-400/40"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${confirmMutation.isPending ? 'animate-spin' : ''}`} />
+                  <span className="text-xs">
+                    Still Happening
+                    {(incident.confirmCount || 0) > 0 && ` · ${incident.confirmCount} confirmed`}
+                  </span>
+                </Button>
+              )}
+
               {!isAuthenticated && (
-                <p className="text-center text-white/30 text-[9px]">Sign in to vote</p>
+                <p className="text-center text-white/30 text-[9px]">Sign in to vote or confirm</p>
               )}
             </div>
           </div>

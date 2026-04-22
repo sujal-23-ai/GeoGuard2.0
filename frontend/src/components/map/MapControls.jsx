@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Layers, Crosshair, Plus, Flame, Navigation } from 'lucide-react';
+import { Layers, Crosshair, Plus, Flame, Navigation, ShieldCheck } from 'lucide-react';
 import useAppStore from '../../store/useAppStore';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { cn } from '../../utils/cn';
@@ -27,7 +27,7 @@ function ControlButton({ icon: Icon, label, active, onClick, className, isSatell
 }
 
 export default function MapControls() {
-  const { showHeatmap, toggleHeatmap, showSatellite, toggleSatellite, setReportPanelOpen, setRoutingPanelOpen, routingPanelOpen } = useAppStore();
+  const { showHeatmap, toggleHeatmap, showSatellite, toggleSatellite, showSafeZones, toggleSafeZones, setReportPanelOpen, setRoutingPanelOpen, routingPanelOpen } = useAppStore();
   const { locate, loading } = useGeolocation();
 
   return (
@@ -48,6 +48,7 @@ export default function MapControls() {
         isSatellite={showSatellite}
       />
       <ControlButton icon={Flame} label="Toggle Heatmap" active={showHeatmap} onClick={toggleHeatmap} isSatellite={showSatellite} />
+      <ControlButton icon={ShieldCheck} label="Safe Zones" active={showSafeZones} onClick={toggleSafeZones} isSatellite={showSatellite} />
       <ControlButton icon={Layers} label="Toggle Satellite" active={showSatellite} onClick={toggleSatellite} isSatellite={showSatellite} />
       <ControlButton
         icon={Crosshair}

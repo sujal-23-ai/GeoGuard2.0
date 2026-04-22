@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Plus, Siren, Navigation, Users } from 'lucide-react';
+import { Plus, Siren, Navigation } from 'lucide-react';
 import { usersApi } from '../../services/api';
 import useAppStore from '../../store/useAppStore';
 import { getRiskScore } from '../../utils/helpers';
@@ -7,8 +7,11 @@ import { getRiskScore } from '../../utils/helpers';
 export default function BottomBar() {
   const { liveIncidents, setReportPanelOpen, setSosActive, sosActive, isAuthenticated } = useAppStore();
   const riskScore = getRiskScore(liveIncidents);
-
   const riskColor = riskScore > 70 ? '#EF4444' : riskScore > 40 ? '#F59E0B' : '#10B981';
+  const maxSeverity = liveIncidents.length > 0 ? Math.max(...liveIncidents.map((i) => i.severity)) : 0;
+  const riskExplain = liveIncidents.length === 0
+    ? 'No active incidents'
+    : `${liveIncidents.length} incident${liveIncidents.length !== 1 ? 's' : ''} · max sev ${maxSeverity}`;
 
   return (
     <motion.div
@@ -40,6 +43,7 @@ export default function BottomBar() {
             <div className="text-xs font-semibold" style={{ color: riskColor }}>
               {riskScore > 70 ? 'High' : riskScore > 40 ? 'Medium' : 'Low'}
             </div>
+            <div className="text-[9px] text-white/30 max-w-[90px] truncate">{riskExplain}</div>
           </div>
         </div>
 

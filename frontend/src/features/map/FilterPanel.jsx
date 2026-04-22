@@ -8,7 +8,14 @@ import Button from '../../components/ui/Button';
 export default function FilterPanel() {
   const [open, setOpen] = useState(false);
   const { filters, setFilters, clearFilters } = useAppStore();
-  const hasFilters = filters.category || filters.severity;
+  const hasFilters = filters.category || filters.severity || filters.since;
+
+  const TIME_OPTS = [
+    { label: '1h',  ms: 3_600_000 },
+    { label: '6h',  ms: 21_600_000 },
+    { label: '24h', ms: 86_400_000 },
+    { label: '7d',  ms: 604_800_000 },
+  ];
 
   return (
     <>
@@ -28,7 +35,7 @@ export default function FilterPanel() {
         {hasFilters ? 'Filtered' : 'Filter'}
         {hasFilters && (
           <span className="w-5 h-5 rounded-full bg-white/20 text-white text-[10px] font-bold flex items-center justify-center">
-            {[filters.category, filters.severity].filter(Boolean).length}
+            {[filters.category, filters.severity, filters.since].filter(Boolean).length}
           </span>
         )}
       </motion.button>
@@ -113,6 +120,30 @@ export default function FilterPanel() {
                             }}
                           >
                             {s}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Time window */}
+                  <div>
+                    <label className="text-xs text-white/50 mb-2 block font-semibold">Time Window</label>
+                    <div className="flex gap-1.5">
+                      {TIME_OPTS.map(({ label, ms }) => {
+                        const active = filters.since === ms;
+                        return (
+                          <button
+                            key={label}
+                            onClick={() => setFilters({ since: active ? null : ms })}
+                            className="flex-1 py-1.5 rounded-lg text-xs font-bold transition-all"
+                            style={{
+                              backgroundColor: active ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.05)',
+                              border: `1px solid ${active ? 'rgba(99,102,241,0.5)' : 'transparent'}`,
+                              color: active ? '#818CF8' : 'rgba(255,255,255,0.5)',
+                            }}
+                          >
+                            {label}
                           </button>
                         );
                       })}

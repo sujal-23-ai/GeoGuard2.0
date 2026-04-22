@@ -6,6 +6,42 @@ import { MAP_STYLES } from '../../utils/constants';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || 'pk.demo';
 
+function setupCluster(mapInstance) {
+  if (mapInstance.getSource('incidents-cluster')) return;
+  mapInstance.addSource('incidents-cluster', {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: [] },
+    cluster: true,
+    clusterMaxZoom: 10,
+    clusterRadius: 50,
+  });
+  mapInstance.addLayer({
+    id: 'cluster-circles',
+    type: 'circle',
+    source: 'incidents-cluster',
+    filter: ['has', 'point_count'],
+    paint: {
+      'circle-color': ['step', ['get', 'point_count'], '#3B82F6', 5, '#F59E0B', 10, '#EF4444'],
+      'circle-radius': ['step', ['get', 'point_count'], 20, 5, 28, 10, 36],
+      'circle-opacity': 0.85,
+      'circle-stroke-width': 2,
+      'circle-stroke-color': 'rgba(255,255,255,0.3)',
+    },
+  });
+  mapInstance.addLayer({
+    id: 'cluster-count',
+    type: 'symbol',
+    source: 'incidents-cluster',
+    filter: ['has', 'point_count'],
+    layout: {
+      'text-field': '{point_count_abbreviated}',
+      'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+      'text-size': 12,
+    },
+    paint: { 'text-color': '#ffffff' },
+  });
+}
+
 const FALLBACK_STYLE = {
   version: 8,
   sources: {},
@@ -18,7 +54,7 @@ export default function MapView({ onIncidentClick, mapRef: externalMapRef }) {
   const markersRef = useRef({});
   const [mapReady, setMapReady] = useState(false);
 
-  const { viewport, liveIncidents, userLocation, showHeatmap, showSatellite, setViewport, selectedIncident } = useAppStore();
+  const { viewport, liveIncidents, userLocation, showHeatmap, showSatellite, showSafeZones, setViewport, selectedIncident } = useAppStore();
 
   const getMapStyle = () => {
     const token = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -46,6 +82,7 @@ export default function MapView({ onIncidentClick, mapRef: externalMapRef }) {
 
     map.current.on('load', () => {
       setMapReady(true);
+      setupCluster(map.current);
 
       const token = import.meta.env.VITE_MAPBOX_TOKEN;
       if (token && token !== 'pk.demo') {
@@ -67,6 +104,38 @@ export default function MapView({ onIncidentClick, mapRef: externalMapRef }) {
           // buildings layer unavailable
         }
       }
+
+      // Re-add cluster layers after style change (satellite toggle)
+      map.current.on('style.load', () => setupCluster(map.current));
+
+      // Zoom: toggle between cluster view and individual markers
+      const syncClusterVis = () => {
+        if (!map.current) return;
+        const showClusters = map.current.getZoom() < 11;
+        if (map.current.getLayer('cluster-circles')) {
+          map.current.setLayoutProperty('cluster-circles', 'visibility', showClusters ? 'visible' : 'none');
+          map.current.setLayoutProperty('cluster-count', 'visibility', showClusters ? 'visible' : 'none');
+        }
+        Object.entries(markersRef.current).forEach(([id, marker]) => {
+          if (id.startsWith('__')) return;
+          const el = marker.getElement();
+          if (el) el.style.display = showClusters ? 'none' : '';
+        });
+      };
+      map.current.on('zoom', syncClusterVis);
+
+      // Click cluster to zoom in
+      map.current.on('click', 'cluster-circles', (e) => {
+        const features = map.current.queryRenderedFeatures(e.point, { layers: ['cluster-circles'] });
+        if (!features.length) return;
+        const clusterId = features[0].properties.cluster_id;
+        map.current.getSource('incidents-cluster').getClusterExpansionZoom(clusterId, (err, zoom) => {
+          if (err) return;
+          map.current.easeTo({ center: features[0].geometry.coordinates, zoom: zoom + 1 });
+        });
+      });
+      map.current.on('mouseenter', 'cluster-circles', () => { map.current.getCanvas().style.cursor = 'pointer'; });
+      map.current.on('mouseleave', 'cluster-circles', () => { map.current.getCanvas().style.cursor = ''; });
     });
 
     map.current.on('moveend', () => {
@@ -206,6 +275,17 @@ export default function MapView({ onIncidentClick, mapRef: externalMapRef }) {
 
       markersRef.current[incident.id] = marker;
     });
+
+    // Keep cluster source in sync
+    if (!map.current.getSource('incidents-cluster')) setupCluster(map.current);
+    map.current.getSource('incidents-cluster')?.setData({
+      type: 'FeatureCollection',
+      features: liveIncidents.map((i) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [i.lng, i.lat] },
+        properties: { id: i.id, severity: i.severity },
+      })),
+    });
   }, [liveIncidents, mapReady, onIncidentClick]);
 
   // highlight selected incident marker
@@ -304,6 +384,50 @@ export default function MapView({ onIncidentClick, mapRef: externalMapRef }) {
       .setLngLat([userLocation.lng, userLocation.lat])
       .addTo(map.current);
   }, [userLocation, mapReady]);
+
+  // safe zones — hospitals, police stations, fire stations via Overpass API
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+
+    const SZ = '__sz_';
+    Object.keys(markersRef.current).forEach((id) => {
+      if (id.startsWith(SZ)) { markersRef.current[id].remove(); delete markersRef.current[id]; }
+    });
+
+    if (!showSafeZones || !userLocation) return;
+
+    const { lng, lat } = userLocation;
+    const q = `[out:json][timeout:20];(node["amenity"="hospital"](around:5000,${lat},${lng});node["amenity"="police"](around:5000,${lat},${lng});node["amenity"="fire_station"](around:5000,${lat},${lng}););out body;`;
+
+    fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(q)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!map.current || !mapReady) return;
+        (data.elements || []).forEach((el, i) => {
+          if (!el.lat || !el.lon) return;
+          const amenity = el.tags?.amenity;
+          const icon  = amenity === 'hospital' ? '🏥' : amenity === 'police' ? '🚔' : '🚒';
+          const color = amenity === 'hospital' ? '#10B981' : amenity === 'police' ? '#3B82F6' : '#F59E0B';
+
+          const dom = document.createElement('div');
+          dom.style.cssText = `
+            width: 34px; height: 34px; border-radius: 50%;
+            background: ${color}20; border: 2px solid ${color}70;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; cursor: default;
+            box-shadow: 0 0 10px ${color}40;
+          `;
+          dom.innerHTML = icon;
+          dom.title = el.tags?.name || amenity;
+
+          const id = `${SZ}${el.id || i}`;
+          markersRef.current[id] = new mapboxgl.Marker({ element: dom, anchor: 'center' })
+            .setLngLat([el.lon, el.lat])
+            .addTo(map.current);
+        });
+      })
+      .catch(() => {});
+  }, [showSafeZones, userLocation, mapReady]);
 
   return (
     <>
