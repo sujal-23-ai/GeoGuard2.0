@@ -25,11 +25,13 @@ const useAppStore = create(
       toggleHeatmap: () => set((s) => ({ showHeatmap: !s.showHeatmap })),
       showSatellite: false,
       toggleSatellite: () => set((s) => ({ showSatellite: !s.showSatellite })),
+      showSafeZones: false,
+      toggleSafeZones: () => set((s) => ({ showSafeZones: !s.showSafeZones })),
 
       // Filters
-      filters: { category: null, severity: null, radius: 10 },
+      filters: { category: null, severity: null, radius: 10, since: null },
       setFilters: (filters) => set((s) => ({ filters: { ...s.filters, ...filters } })),
-      clearFilters: () => set({ filters: { category: null, severity: null, radius: 10 } }),
+      clearFilters: () => set({ filters: { category: null, severity: null, radius: 10, since: null } }),
 
       // Live mode
       liveMode: false,

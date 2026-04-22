@@ -40,6 +40,7 @@ export const incidentsApi = {
   getById: (id) => api.get(`/incidents/${id}`),
   create: (data) => api.post('/incidents', data),
   vote: (id, voteType) => api.post(`/incidents/${id}/vote`, { voteType }),
+  confirm: (id) => api.post(`/incidents/${id}/confirm`),
   delete: (id) => api.delete(`/incidents/${id}`),
   getAnalytics: (params) => api.get('/incidents/analytics', { params }),
 };

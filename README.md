@@ -66,38 +66,58 @@ VITE_SOCKET_URL=http://localhost:5000
 
 ## Features
 
-### Live Map Dashboard
+### 🗺️ Live Map Dashboard
 - Real-time incident markers with severity-colored glow effects
+- Mapbox cluster view at low zoom (zoom < 11) — expands on click
 - 3D building extrusion layer (with Mapbox token)
 - Heatmap toggle for density visualization
 - Satellite/dark map toggle
+- Safe Zones overlay — hospitals, police stations, fire stations (via Overpass API)
 
-### Incident Reporting
+### 📋 Incident Reporting
 - 10 categories with emoji icons
 - 5-level severity slider with AI tag simulation
-- GPS location auto-fill
+- GPS location auto-fill with map click-to-place
 - +10 points earned per verified report
+- "Still Happening" confirm button — tracks live confirmation count
 
-### Real-Time Engine
+### ⏱️ Filtering
+- Filter by category, severity, and radius
+- **Time window filter**: 1h / 6h / 24h / 7d
+- Active filter count badge
+
+### 📡 Real-Time Engine
 - WebSocket events: `new_incident`, `update_incident`, `sos_alert`, `user_count`
-- Live incident feed sidebar
-- Toast notifications for nearby events
+- Live incident feed sidebar with toast notifications
+- Socket-based location updates for server-side danger zone detection
 
-### Analytics Dashboard
+### 📊 Analytics Dashboard
 - Category breakdown bar chart
 - Severity distribution pie chart
 - Hourly incident trend line chart
-- Dynamic risk score calculation
+- Dynamic risk score with explainable label ("N incidents · max sev X")
 
-### SOS Mode
+### 🆘 SOS Mode
 - One-tap emergency broadcast
 - Blinking red border overlay
 - Alert pushed to all connected users
 
-### Authentication
+### 🔐 Authentication
 - JWT email/password
 - Google OAuth
-- User profile with trust score and points
+- User profile with trust score and gamification points
+- Leaderboard
+
+### 🌍 3D Landing Globe
+- React Three Fiber globe with Fresnel atmosphere shader
+- Instanced data markers per country (severity-colored)
+- Animated arcs between high-risk hotspots
+- Hover tooltips, click-to-focus camera
+- Global / High-Risk-Only toggle
+
+## Screenshots
+
+> Add screenshots to `docs/screenshots/` and reference them here.
 
 ## API Reference
 

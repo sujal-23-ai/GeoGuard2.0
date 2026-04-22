@@ -18,6 +18,7 @@ export const useNearbyIncidents = () => {
           radius: filters.radius,
           ...(filters.category && { category: filters.category }),
           ...(filters.severity && { severity: filters.severity }),
+          ...(filters.since && { since: new Date(Date.now() - filters.since).toISOString() }),
         });
         const incidents = result.incidents || [];
         setLiveIncidents(incidents);
@@ -70,9 +71,18 @@ export const useVoteIncident = () => {
       updateLiveIncident({ id, upvotes: data.upvotes, downvotes: data.downvotes });
       queryClient.invalidateQueries({ queryKey: ['incidents'] });
     },
-    onError: (_, { id }) => {
-      // Revert on error
+    onError: () => {
       queryClient.invalidateQueries({ queryKey: ['incidents'] });
+    },
+  });
+};
+
+export const useConfirmIncident = () => {
+  const updateLiveIncident = useAppStore((s) => s.updateLiveIncident);
+  return useMutation({
+    mutationFn: (id) => incidentsApi.confirm(id),
+    onSuccess: (data, id) => {
+      updateLiveIncident({ id, confirmCount: data.confirmCount });
     },
   });
 };

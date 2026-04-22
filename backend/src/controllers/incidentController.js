@@ -128,10 +128,10 @@ const createIncident = async (req, res) => {
 
 const getNearby = async (req, res) => {
   try {
-    const { lng, lat, radius = 10, category, severity } = req.query;
+    const { lng, lat, radius = 10, category, severity, since } = req.query;
     if (!lng || !lat) return res.status(400).json({ error: 'lng and lat required' });
 
-    const cacheKey = `incidents:nearby:${parseFloat(lng).toFixed(3)}:${parseFloat(lat).toFixed(3)}:${radius}:${category || ''}:${severity || ''}`;
+    const cacheKey = `incidents:nearby:${parseFloat(lng).toFixed(3)}:${parseFloat(lat).toFixed(3)}:${radius}:${category || ''}:${severity || ''}:${since || ''}`;
     const cached = await cacheGet(cacheKey);
     if (cached) return res.json({ incidents: cached, cached: true });
 
@@ -141,6 +141,7 @@ const getNearby = async (req, res) => {
       radiusKm: parseFloat(radius),
       category,
       severity: severity ? parseInt(severity) : undefined,
+      since: since || undefined,
     });
 
     await cacheSet(cacheKey, incidents, 60);
@@ -233,4 +234,15 @@ const getAnalytics = async (req, res) => {
   }
 };
 
-module.exports = { createIncident, getNearby, getAll, getById, voteIncident, deleteIncident, getAnalytics, createValidation };
+const confirmIncident = async (req, res) => {
+  try {
+    const result = await Incident.confirm(req.params.id, req.user._id);
+    await cacheDelPattern('incidents:nearby:*');
+    req.io?.emit('update_incident', { id: req.params.id, confirmCount: result.confirmCount });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to confirm incident' });
+  }
+};
+
+module.exports = { createIncident, getNearby, getAll, getById, voteIncident, deleteIncident, getAnalytics, confirmIncident, createValidation };
