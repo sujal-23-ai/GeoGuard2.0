@@ -58,19 +58,44 @@ const DEMO_ARTICLES = [
   },
 ];
 
+const assignCategory = (title, description) => {
+  const text = (title + ' ' + description).toLowerCase();
+  if (text.match(/police|crime|theft|robbery|murder|assault|vandalism|shooting|arrest/)) return 'crime';
+  if (text.match(/weather|storm|flood|rain|hurricane|tornado|snow|wind|alert/)) return 'weather';
+  if (text.match(/accident|crash|collision|pile-up|traffic|road|highway/)) return 'accident';
+  if (text.match(/infrastructure|power|water|outage|utility|construction|repair/)) return 'infrastructure';
+  if (text.match(/community|forum|council|public|meeting|event|neighborhood/)) return 'community';
+  return 'general';
+};
+
 const getNews = async (req, res) => {
   try {
-    const { city = 'local area' } = req.query;
-    const safeCity = String(city).slice(0, 80).replace(/[<>"']/g, '');
+    let { city, lat, lng } = req.query;
+    
+    // Resolve location
+    let resolvedCity = String(city || 'local area').slice(0, 80).replace(/[<>"']/g, '');
+    
+    if (lat && lng && (!city || city === 'your area' || city === 'local area')) {
+      try {
+        const geoUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`;
+        const { data: geoData } = await axios.get(geoUrl, {
+          headers: { 'User-Agent': 'Geoguard/1.0' },
+          timeout: 4000
+        });
+        resolvedCity = geoData.address?.city || geoData.address?.town || geoData.address?.village || geoData.address?.county || geoData.address?.state_district || resolvedCity;
+      } catch (geocodeErr) {
+        console.error('Geocoding error:', geocodeErr.message);
+      }
+    }
 
-    const cacheKey = `news:${safeCity.toLowerCase().replace(/\s+/g, '_')}`;
+    const cacheKey = `news:${resolvedCity.toLowerCase().replace(/\s+/g, '_')}`;
     const cached = await cacheGet(cacheKey);
-    if (cached) return res.json({ articles: cached, source: 'cache' });
+    if (cached) return res.json({ articles: cached, source: 'cache', resolvedCity });
 
     const apiKey = process.env.GNEWS_API_KEY;
-    if (!apiKey) return res.json({ articles: DEMO_ARTICLES, source: 'demo' });
+    if (!apiKey) return res.json({ articles: DEMO_ARTICLES, source: 'demo', resolvedCity });
 
-    const query = `${safeCity} (safety OR crime OR accident OR emergency OR hazard)`;
+    const query = `${resolvedCity} (safety OR crime OR accident OR emergency OR hazard)`;
     const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(query)}&lang=en&max=10&sortby=publishedAt&apikey=${apiKey}`;
     const { data } = await axios.get(url, { timeout: 8000 });
 
@@ -81,15 +106,20 @@ const getNews = async (req, res) => {
       source: a.source?.name || 'News',
       publishedAt: a.publishedAt,
       image: a.image || null,
-      category: 'general',
+      category: assignCategory(a.title, a.description || ''),
     }));
 
-    const result = articles.length ? articles : DEMO_ARTICLES;
+    // Only fallback to demo if it's 'local area' literally and we got 0 articles,
+    // otherwise if we searched a specific resolved city and got 0, return 0.
+    const isFallback = articles.length === 0 && (resolvedCity === 'local area' || resolvedCity === 'your area');
+    const result = isFallback ? DEMO_ARTICLES : articles;
+    const source = isFallback ? 'demo' : 'gnews';
+    
     if (articles.length) await cacheSet(cacheKey, result, 900);
-    res.json({ articles: result, source: articles.length ? 'gnews' : 'demo' });
+    res.json({ articles: result, source, resolvedCity });
   } catch (err) {
     console.error('News fetch error:', err.message);
-    res.json({ articles: DEMO_ARTICLES, source: 'demo' });
+    res.json({ articles: DEMO_ARTICLES, source: 'demo', resolvedCity });
   }
 };
 
