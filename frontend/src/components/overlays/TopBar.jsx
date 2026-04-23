@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Search, Wifi, WifiOff, BarChart2, Menu, Brain, Radio, MapPin } from 'lucide-react';
+import { Shield, Search, Wifi, WifiOff, BarChart2, Menu, Brain, Radio, MapPin, Newspaper } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import useAppStore from '../../store/useAppStore';
 import { LiveBadge } from '../ui/Badge';
@@ -7,7 +7,7 @@ import { LiveBadge } from '../ui/Badge';
 export default function TopBar({ onMenuOpen }) {
   const {
     socketConnected, connectedUsers, notifications,
-    setAnalyticsPanelOpen,
+    setAnalyticsPanelOpen, setNewsPanelOpen,
     liveMode, toggleLiveMode, setAiAssistantOpen,
   } = useAppStore();
   const [searchQuery, setSearchQuery] = useState('');
@@ -154,6 +154,18 @@ export default function TopBar({ onMenuOpen }) {
 
         {/* Action buttons */}
         <div className="flex items-center gap-2">
+          {/* News */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setNewsPanelOpen(true)}
+            title="Safety News"
+            className="w-10 h-10 glass-panel rounded-xl flex items-center justify-center text-white/70 hover:text-white
+                       shadow-card transition-all duration-200 hover:border-primary/40"
+          >
+            <Newspaper className="w-4 h-4" />
+          </motion.button>
+
           {/* AI Assistant */}
           <motion.button
             whileHover={{ scale: 1.05 }}

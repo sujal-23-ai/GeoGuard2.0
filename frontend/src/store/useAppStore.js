@@ -55,6 +55,17 @@ const useAppStore = create(
       sosActive: false,
       setSosActive: (active) => set({ sosActive: active }),
 
+      // News panel
+      newsPanelOpen: false,
+      setNewsPanelOpen: (open) => set({ newsPanelOpen: open }),
+
+      // Location sharing
+      shareActive: false,
+      shareToken: null,
+      shareExpiry: null,
+      setShareSession: (token, expiry) => set({ shareActive: true, shareToken: token, shareExpiry: expiry }),
+      stopShare: () => set({ shareActive: false, shareToken: null, shareExpiry: null }),
+
       // Menu state (used by LandingPage to open specific tab)
       menuOpen: false,
       setMenuOpen: (open) => set({ menuOpen: open }),

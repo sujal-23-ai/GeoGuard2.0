@@ -88,6 +88,13 @@ const setupSockets = (io) => {
       } catch { /* silent */ }
     });
 
+    // Join a location share room as a viewer
+    socket.on('join_share_room', (token) => {
+      if (token && typeof token === 'string') {
+        socket.join(`share:${token}`);
+      }
+    });
+
     // Live mode: client opts in to high-frequency updates
     socket.on('enable_live_mode', () => {
       socket.join('live_mode');

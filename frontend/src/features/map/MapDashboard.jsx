@@ -15,6 +15,7 @@ import LeaderboardModal from '../user/LeaderboardModal';
 import RoutingPanel from '../routing/RoutingPanel';
 import AdminPanel from '../admin/AdminPanel';
 import AiAssistant from '../ai/AiAssistant';
+import NewsPanel from '../news/NewsPanel';
 import NotificationToast from '../../components/overlays/NotificationToast';
 import { useNearbyIncidents } from '../../hooks/useIncidents';
 import { useSocket } from '../../hooks/useSocket';
@@ -29,6 +30,7 @@ export default function MapDashboard() {
   const {
     sosActive, leaderboardOpen, setLeaderboardOpen, adminPanelOpen, setAdminPanelOpen, user,
     aiAssistantOpen, setAiAssistantOpen, profilePanelOpen, setProfilePanelOpen,
+    newsPanelOpen, setNewsPanelOpen,
     clearNavigation, setJourneyCompleted,
     menuOpen, setMenuOpen,
     selectedIncident, setSelectedIncident,
@@ -92,6 +94,7 @@ export default function MapDashboard() {
         <AdminPanel open={adminPanelOpen} onClose={() => setAdminPanelOpen(false)} />
       )}
       <AiAssistant open={aiAssistantOpen} onClose={() => setAiAssistantOpen(false)} />
+      <NewsPanel open={newsPanelOpen} onClose={() => setNewsPanelOpen(false)} />
       <NotificationToast />
     </div>
   );
