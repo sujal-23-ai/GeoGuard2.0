@@ -62,6 +62,19 @@ export const mediaApi = {
   }),
 };
 
+// News
+export const newsApi = {
+  get: (params) => api.get('/news', { params }),
+};
+
+// Location sharing
+export const shareApi = {
+  create: (data) => api.post('/users/share-location', data),
+  get: (token) => api.get(`/users/share-location/${token}`),
+  update: (token, data) => api.put(`/users/share-location/${token}`, data),
+  stop: (token) => api.delete(`/users/share-location/${token}`),
+};
+
 // Prediction / AI
 export const predictionApi = {
   getRisk:    (params) => api.get('/prediction/risk', { params }),

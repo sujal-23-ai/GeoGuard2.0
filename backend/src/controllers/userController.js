@@ -1,6 +1,10 @@
+const crypto = require('crypto');
 const User = require('../models/user');
 const Incident = require('../models/incident');
 const SosAlert = require('../models/sosAlert');
+const { cacheGet, cacheSet, cacheDel } = require('../config/redis');
+
+const SHARE_TTL = 1800; // 30 minutes
 
 const getProfile = async (req, res) => {
   try {
@@ -94,4 +98,86 @@ const sosAlert = async (req, res) => {
   }
 };
 
-module.exports = { getProfile, updateProfile, updateLocation, getLeaderboard, getAllUsers, sosAlert };
+const createShareSession = async (req, res) => {
+  try {
+    const { lat, lng, message } = req.body;
+    if (!lat || !lng) return res.status(400).json({ error: 'lat and lng required' });
+
+    const token = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + SHARE_TTL * 1000).toISOString();
+    const session = {
+      userId: req.user._id.toString(),
+      name: req.user.name,
+      lat: parseFloat(lat),
+      lng: parseFloat(lng),
+      message: message || null,
+      createdAt: new Date().toISOString(),
+      expiresAt,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await cacheSet(`share:${token}`, session, SHARE_TTL);
+    const base = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.status(201).json({ token, expiresAt, shareUrl: `${base}?shareToken=${token}` });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create share session' });
+  }
+};
+
+const getShareSession = async (req, res) => {
+  try {
+    const session = await cacheGet(`share:${req.params.token}`);
+    if (!session) return res.status(404).json({ error: 'Share session not found or expired' });
+    res.json({ session });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get share session' });
+  }
+};
+
+const updateSharePosition = async (req, res) => {
+  try {
+    const { lat, lng } = req.body;
+    if (!lat || !lng) return res.status(400).json({ error: 'lat and lng required' });
+
+    const session = await cacheGet(`share:${req.params.token}`);
+    if (!session) return res.status(404).json({ error: 'Share session not found or expired' });
+    if (session.userId !== req.user._id.toString()) return res.status(403).json({ error: 'Forbidden' });
+
+    const remaining = Math.ceil((new Date(session.expiresAt) - Date.now()) / 1000);
+    if (remaining <= 0) return res.status(410).json({ error: 'Share session expired' });
+
+    const updated = { ...session, lat: parseFloat(lat), lng: parseFloat(lng), updatedAt: new Date().toISOString() };
+    await cacheSet(`share:${req.params.token}`, updated, remaining);
+
+    req.io?.to(`share:${req.params.token}`).emit('share_update', {
+      token: req.params.token,
+      lat: updated.lat,
+      lng: updated.lng,
+      name: updated.name,
+      updatedAt: updated.updatedAt,
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update position' });
+  }
+};
+
+const stopShareSession = async (req, res) => {
+  try {
+    const session = await cacheGet(`share:${req.params.token}`);
+    if (!session) return res.status(404).json({ error: 'Share session not found' });
+    if (session.userId !== req.user._id.toString()) return res.status(403).json({ error: 'Forbidden' });
+
+    await cacheDel(`share:${req.params.token}`);
+    req.io?.to(`share:${req.params.token}`).emit('share_ended', { token: req.params.token });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to stop share session' });
+  }
+};
+
+module.exports = {
+  getProfile, updateProfile, updateLocation, getLeaderboard, getAllUsers, sosAlert,
+  createShareSession, getShareSession, updateSharePosition, stopShareSession,
+};

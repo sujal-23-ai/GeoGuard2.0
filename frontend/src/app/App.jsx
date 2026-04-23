@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import LandingPage from '../features/auth/LandingPage';
 import MapDashboard from '../features/map/MapDashboard';
+import ShareLocationView from '../features/share/ShareLocationView';
 import ToastContainer from '../components/ui/Toast';
 import useAppStore from '../store/useAppStore';
 import { authApi } from '../services/api';
@@ -9,6 +10,7 @@ import { authApi } from '../services/api';
 export default function App() {
   const [view, setView] = useState('landing');
   const [isLoading, setIsLoading] = useState(true);
+  const [shareToken, setShareToken] = useState(null);
   const theme = useAppStore((s) => s.theme);
 
   useEffect(() => {
@@ -21,7 +23,15 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
+    const sToken = params.get('shareToken');
     const existingToken = useAppStore.getState().token;
+
+    if (sToken) {
+      setShareToken(sToken);
+      setView('share');
+      setIsLoading(false);
+      return;
+    }
 
     if (token) {
       useAppStore.setState({ token });
@@ -77,7 +87,9 @@ export default function App() {
   return (
     <div className="w-full h-full bg-background">
       <AnimatePresence mode="wait">
-        {view === 'landing' ? (
+        {view === 'share' ? (
+          <ShareLocationView key="share" token={shareToken} />
+        ) : view === 'landing' ? (
           <motion.div
             key="landing"
             initial={{ opacity: 0 }}
