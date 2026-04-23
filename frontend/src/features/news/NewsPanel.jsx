@@ -110,7 +110,7 @@ export default function NewsPanel({ open, onClose }) {
                   </div>
                   <div>
                     <h2 className="text-white font-bold text-sm">Safety News</h2>
-                    <p className="text-white/40 text-xs capitalize">{activeCity}</p>
+                    <p className="text-white/40 text-xs capitalize">{data?.resolvedCity || activeCity}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
