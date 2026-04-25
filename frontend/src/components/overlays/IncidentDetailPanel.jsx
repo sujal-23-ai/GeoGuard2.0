@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ThumbsUp, ThumbsDown, MapPin, Clock, User, Shield, Eye, EyeOff, Play, ChevronLeft, ChevronRight, Brain, RefreshCw } from 'lucide-react';
 import { SeverityBadge, CategoryBadge } from '../ui/Badge';
-import Button from '../ui/Button';
 import { getCategory, timeAgo } from '../../utils/helpers';
 import { useVoteIncident, useConfirmIncident } from '../../hooks/useIncidents';
 import useAppStore from '../../store/useAppStore';
@@ -134,8 +133,28 @@ function AiConfidence({ score, riskLevel }) {
   );
 }
 
+/* ── Animated vote count ─────────────────────────────────── */
+function AnimatedCount({ value }) {
+  return (
+    <AnimatePresence mode="popLayout">
+      <motion.span
+        key={value}
+        initial={{ y: -8, opacity: 0, scale: 0.7 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        exit={{ y: 8, opacity: 0, scale: 0.7 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+        className="text-xs tabular-nums inline-block min-w-[1ch] text-center"
+      >
+        {value}
+      </motion.span>
+    </AnimatePresence>
+  );
+}
+
 /* ── Main component ──────────────────────────────────────── */
-export default function IncidentDetailPanel({ incident, onClose }) {
+export default function IncidentDetailPanel({ onClose }) {
+  // Read directly from store so optimistic updates are reflected instantly
+  const incident = useAppStore((s) => s.selectedIncident);
   const { isAuthenticated } = useAppStore();
   const voteMutation = useVoteIncident();
   const confirmMutation = useConfirmIncident();
@@ -241,44 +260,86 @@ export default function IncidentDetailPanel({ incident, onClose }) {
                 </div>
               )}
 
-              {/* Votes */}
+              {/* ── Votes ─────────────────────────────────── */}
               <div className="flex items-center gap-2 pt-2 border-t border-white/8">
-                <Button variant="ghost" size="sm" onClick={() => handleVote('up')}
+                {/* Upvote */}
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => handleVote('up')}
                   disabled={!isAuthenticated}
-                  className={`flex-1 transition-all ${
-                    incident._userVote === 'up'
-                      ? 'text-emerald-400 bg-emerald-400/15 border border-emerald-400/30'
-                      : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10'
-                  }`}>
-                  <ThumbsUp className="w-3.5 h-3.5" />
-                  <span className="text-xs">{incident.upvotes || 0}</span>
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => handleVote('down')}
+                  className={`flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl font-semibold text-xs transition-all duration-200
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                    ${incident._userVote === 'up'
+                      ? 'bg-emerald-400/20 border border-emerald-400/40 text-emerald-400'
+                      : 'bg-transparent hover:bg-emerald-400/10 text-emerald-400/70 hover:text-emerald-400 border border-transparent hover:border-emerald-400/20'
+                    }`}
+                >
+                  <motion.div
+                    key={`up-${incident._userVote === 'up'}`}
+                    initial={{ scale: 1 }}
+                    animate={incident._userVote === 'up' ? { scale: [1, 1.4, 1], rotate: [0, -15, 0] } : {}}
+                    transition={{ duration: 0.35, ease: 'easeOut' }}
+                  >
+                    <ThumbsUp className="w-3.5 h-3.5" />
+                  </motion.div>
+                  <AnimatedCount value={incident.upvotes || 0} />
+                </motion.button>
+
+                {/* Downvote */}
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => handleVote('down')}
                   disabled={!isAuthenticated}
-                  className={`flex-1 transition-all ${
-                    incident._userVote === 'down'
-                      ? 'text-red-400 bg-red-400/15 border border-red-400/30'
-                      : 'text-red-400 hover:text-red-300 hover:bg-red-400/10'
-                  }`}>
-                  <ThumbsDown className="w-3.5 h-3.5" />
-                  <span className="text-xs">{incident.downvotes || 0}</span>
-                </Button>
+                  className={`flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl font-semibold text-xs transition-all duration-200
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                    ${incident._userVote === 'down'
+                      ? 'bg-red-400/20 border border-red-400/40 text-red-400'
+                      : 'bg-transparent hover:bg-red-400/10 text-red-400/70 hover:text-red-400 border border-transparent hover:border-red-400/20'
+                    }`}
+                >
+                  <motion.div
+                    key={`down-${incident._userVote === 'down'}`}
+                    initial={{ scale: 1 }}
+                    animate={incident._userVote === 'down' ? { scale: [1, 1.4, 1], rotate: [0, 15, 0] } : {}}
+                    transition={{ duration: 0.35, ease: 'easeOut' }}
+                  >
+                    <ThumbsDown className="w-3.5 h-3.5" />
+                  </motion.div>
+                  <AnimatedCount value={incident.downvotes || 0} />
+                </motion.button>
               </div>
 
+              {/* ── Confirm still happening ───────────────── */}
               {isAuthenticated && (
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  whileHover={{ scale: 1.01 }}
                   onClick={() => confirmMutation.mutate(incident.id || incident._id)}
                   disabled={confirmMutation.isPending}
-                  className="w-full text-amber-400 hover:bg-amber-400/10 border border-amber-400/20 hover:border-amber-400/40"
+                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl font-semibold text-xs
+                    text-amber-400 hover:bg-amber-400/10 border border-amber-400/20 hover:border-amber-400/40
+                    transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${confirmMutation.isPending ? 'animate-spin' : ''}`} />
-                  <span className="text-xs">
+                  <motion.div
+                    animate={confirmMutation.isPending ? { rotate: 360 } : {}}
+                    transition={confirmMutation.isPending ? { repeat: Infinity, duration: 0.8, ease: 'linear' } : {}}
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </motion.div>
+                  <span>
                     Still Happening
-                    {(incident.confirmCount || 0) > 0 && ` · ${incident.confirmCount} confirmed`}
+                    {(incident.confirmCount || 0) > 0 && (
+                      <motion.span
+                        key={incident.confirmCount}
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="ml-1"
+                      >
+                        · {incident.confirmCount} confirmed
+                      </motion.span>
+                    )}
                   </span>
-                </Button>
+                </motion.button>
               )}
 
               {!isAuthenticated && (

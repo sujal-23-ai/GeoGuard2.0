@@ -14,13 +14,17 @@ async function fetchRoute(origin, destination, profile = 'driving') {
       geometry: { type: 'LineString', coordinates: [origin, [origin[0] + 0.01, origin[1] + 0.01], destination] },
       duration: Math.round(Math.random() * 1800 + 300),
       distance: Math.round(Math.random() * 15000 + 2000),
+      steps: [],
     };
   }
-  const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${origin[0]},${origin[1]};${destination[0]},${destination[1]}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`;
+  const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${origin[0]},${origin[1]};${destination[0]},${destination[1]}?geometries=geojson&overview=full&steps=true&banner_instructions=true&voice_instructions=true&access_token=${MAPBOX_TOKEN}`;
   const res = await fetch(url);
   const data = await res.json();
   if (!data.routes?.[0]) throw new Error('No route found');
-  return data.routes[0];
+  const route = data.routes[0];
+  // Flatten steps from all legs
+  const steps = (route.legs || []).flatMap((leg) => leg.steps || []);
+  return { ...route, steps };
 }
 
 function formatDuration(seconds) {
@@ -33,7 +37,21 @@ function formatDistance(meters) {
   return `${(meters / 1000).toFixed(1)} km`;
 }
 
-function LocationInput({ value, onChange, placeholder, icon: Icon, iconColor, iconClass }) {
+function calcDist(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatSuggestionDist(meters) {
+  if (meters < 1000) return `${Math.round(meters)} m`;
+  if (meters < 10000) return `${(meters / 1000).toFixed(1)} km`;
+  return `${Math.round(meters / 1000)} km`;
+}
+
+function LocationInput({ value, onChange, onSelectCoords, placeholder, icon: Icon, iconColor, iconClass, userLocation }) {
   const [suggestions, setSuggestions] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -43,13 +61,13 @@ function LocationInput({ value, onChange, placeholder, icon: Icon, iconColor, ic
       const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
       if (!MAPBOX_TOKEN || MAPBOX_TOKEN === 'pk.demo') return;
       try {
-        const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(value)}.json?access_token=${MAPBOX_TOKEN}&types=place,address,poi&limit=5`);
+        const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(value)}.json?access_token=${MAPBOX_TOKEN}&types=place,address,poi&limit=6`);
         const data = await res.json();
         setSuggestions(data.features || []);
       } catch(e) {}
     }, 300);
     return () => clearTimeout(timer);
-  }, [value]);
+  }, [value, userLocation]);
 
   return (
     <div className="relative">
@@ -65,15 +83,33 @@ function LocationInput({ value, onChange, placeholder, icon: Icon, iconColor, ic
       />
       {showDropdown && suggestions.length > 0 && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-surface/95 backdrop-blur border border-white/10 shadow-lg rounded-xl overflow-hidden z-50">
-          {suggestions.map(s => (
-            <button
-              key={s.id}
-              onClick={() => { onChange(s.place_name); setShowDropdown(false); }}
-              className="w-full text-left px-3 py-2 text-xs text-white/70 hover:text-white hover:bg-white/10"
-            >
-              {s.place_name}
-            </button>
-          ))}
+          {suggestions.map(s => {
+            const dist = userLocation && s.center
+              ? calcDist(userLocation.lat, userLocation.lng, s.center[1], s.center[0])
+              : null;
+            return (
+              <button
+                key={s.id}
+                onClick={() => { onChange(s.place_name); onSelectCoords?.(s.center); setShowDropdown(false); }}
+                className="w-full text-left px-3 py-2.5 hover:bg-white/8 transition-colors flex items-start gap-2 group"
+              >
+                <MapPin className="w-3 h-3 text-white/30 mt-0.5 flex-shrink-0 group-hover:text-primary" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-white/80 group-hover:text-white truncate">
+                    {s.text || s.place_name.split(',')[0]}
+                  </p>
+                  <p className="text-[10px] text-white/35 truncate mt-0.5">
+                    {s.place_name}
+                  </p>
+                </div>
+                {dist != null && (
+                  <span className="text-[10px] text-white/30 flex-shrink-0 mt-0.5">
+                    {formatSuggestionDist(dist)}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -84,6 +120,8 @@ export default function RoutingPanel({ mapRef }) {
   const { routingPanelOpen, setRoutingPanelOpen, liveIncidents, userLocation } = useAppStore();
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
+  const [originCoordsState, setOriginCoordsState] = useState(null);   // [lng, lat] from suggestion
+  const [destCoordsState, setDestCoordsState]     = useState(null);   // [lng, lat] from suggestion
   const [routeType, setRouteType] = useState('safe');
   const [transportMode, setTransportMode] = useState('driving');
   const [routes, setRoutes] = useState(null);
@@ -108,6 +146,7 @@ export default function RoutingPanel({ mapRef }) {
       riskLevel: selectedRoute.risk > 60 ? 'high' : selectedRoute.risk > 30 ? 'medium' : 'low',
       transportMode,
       destCoords: routes.destCoords,
+      steps: selectedRoute.steps || [],
     });
     setJourneyActive(true);
     setJourneyCompleted(false);
@@ -123,9 +162,35 @@ export default function RoutingPanel({ mapRef }) {
           const store = useAppStore.getState();
           store.setUserLocation({ lng, lat });
 
-          // Auto-follow camera
+          // Auto-follow camera with direction and pitch
           if (mapRef?.current) {
-            mapRef.current.easeTo({ center: [lng, lat], duration: 800 });
+            let bearing = mapRef.current.getBearing();
+            const posHeading = pos.coords.heading;
+            const prevLoc = store.userLocation;
+
+            if (posHeading != null && !isNaN(posHeading)) {
+              bearing = posHeading;
+            } else if (prevLoc) {
+              const y = Math.sin((lng - prevLoc.lng) * Math.PI / 180) * Math.cos(lat * Math.PI / 180);
+              const x = Math.cos(prevLoc.lat * Math.PI / 180) * Math.sin(lat * Math.PI / 180) -
+                        Math.sin(prevLoc.lat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) * Math.cos((lng - prevLoc.lng) * Math.PI / 180);
+              const calcBearing = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+              
+              // Only update bearing if moved > 2 meters to avoid jitter
+              const dLat = (lat - prevLoc.lat) * 111320;
+              const dLng = (lng - prevLoc.lng) * 111320 * Math.cos(lat * Math.PI / 180);
+              if (Math.sqrt(dLat*dLat + dLng*dLng) > 2) {
+                bearing = calcBearing;
+              }
+            }
+
+            mapRef.current.easeTo({ 
+              center: [lng, lat], 
+              bearing, 
+              pitch: 60, 
+              duration: 1000,
+              easing: (t) => t * (2 - t)
+            });
           }
 
           // Check if arrived at destination (within 100m)
@@ -181,23 +246,28 @@ export default function RoutingPanel({ mapRef }) {
     setRoutes(null);
     setError('');
     if (mapRef?.current) {
-      ['route-safe', 'route-fast', 'route-safe-casing', 'route-fast-casing'].forEach((id) => {
+      ['route-safe', 'route-fast', 'route-safe-casing', 'route-fast-casing', 'route-safe-dest', 'route-fast-dest'].forEach((id) => {
         if (mapRef.current.getLayer?.(id)) mapRef.current.removeLayer(id);
       });
-      ['route-safe-src', 'route-fast-src'].forEach((id) => {
+      ['route-safe-src', 'route-fast-src', 'route-safe-src-dest', 'route-fast-src-dest'].forEach((id) => {
         if (mapRef.current.getSource?.(id)) mapRef.current.removeSource(id);
       });
     }
   };
 
-  const drawRouteOnMap = (route, sourceId, layerId, color, isDashed = false) => {
+  const drawRouteOnMap = (route, sourceId, layerId, color, isDashed = false, exactDestCoords = null) => {
     if (!mapRef?.current) return;
     const map = mapRef.current;
     if (!map.getStyle) return;
 
+    // Clean up old layers
     if (map.getLayer(layerId + '-casing')) map.removeLayer(layerId + '-casing');
     if (map.getLayer(layerId)) map.removeLayer(layerId);
     if (map.getSource(sourceId)) map.removeSource(sourceId);
+    
+    // Clean up connection line
+    if (map.getLayer(layerId + '-conn')) map.removeLayer(layerId + '-conn');
+    if (map.getSource(sourceId + '-conn')) map.removeSource(sourceId + '-conn');
 
     map.addSource(sourceId, { type: 'geojson', data: { type: 'Feature', geometry: route.geometry } });
 
@@ -221,6 +291,52 @@ export default function RoutingPanel({ mapRef }) {
       },
       layout: { 'line-cap': 'round', 'line-join': 'round' },
     });
+
+    const coords = route.geometry.coordinates;
+    const roadEnd = coords[coords.length - 1];
+    const destPoint = exactDestCoords || roadEnd;
+
+    // Optional connection line from road end to exact destination
+    if (exactDestCoords && (roadEnd[0] !== exactDestCoords[0] || roadEnd[1] !== exactDestCoords[1])) {
+      map.addSource(sourceId + '-conn', {
+        type: 'geojson',
+        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [roadEnd, exactDestCoords] } }
+      });
+      map.addLayer({
+        id: layerId + '-conn',
+        type: 'line',
+        source: sourceId + '-conn',
+        paint: {
+          'line-color': color,
+          'line-width': 3,
+          'line-opacity': 0.6,
+          'line-dasharray': [1, 2]
+        }
+      });
+    }
+
+    // Destination Marker at EXACT location
+
+    if (map.getLayer(layerId + '-dest')) map.removeLayer(layerId + '-dest');
+    if (map.getSource(sourceId + '-dest')) map.removeSource(sourceId + '-dest');
+
+    map.addSource(sourceId + '-dest', {
+      type: 'geojson',
+      data: { type: 'Feature', geometry: { type: 'Point', coordinates: destPoint } }
+    });
+
+    map.addLayer({
+      id: layerId + '-dest',
+      type: 'circle',
+      source: sourceId + '-dest',
+      paint: {
+        'circle-radius': 8,
+        'circle-color': color,
+        'circle-stroke-width': 3,
+        'circle-stroke-color': '#ffffff',
+        'circle-pitch-alignment': 'map'
+      }
+    });
   };
 
   const handleGetRoutes = async () => {
@@ -233,9 +349,13 @@ export default function RoutingPanel({ mapRef }) {
     setRoutes(null);
 
     try {
-      let originCoords = userLocation ? [userLocation.lng, userLocation.lat] : [-74.006, 40.7128];
-      let destCoords = [-73.985, 40.748];
+      // Use stored coords from suggestion selection, fall back to geocoding text
+      let originCoords = origin.toLowerCase().includes('my location') && userLocation
+        ? [userLocation.lng, userLocation.lat]
+        : originCoordsState || null;
+      let destCoords = destCoordsState || null;
 
+      // Only geocode if we don't have coords (user typed manually instead of picking a suggestion)
       if (MAPBOX_TOKEN && MAPBOX_TOKEN !== 'pk.demo') {
         const geocode = async (query) => {
           const r = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&limit=1`);
@@ -243,12 +363,24 @@ export default function RoutingPanel({ mapRef }) {
           return d.features?.[0]?.center;
         };
 
-        const [oc, dc] = await Promise.all([
-          origin.toLowerCase().includes('my location') ? originCoords : geocode(origin),
-          geocode(destination),
-        ]);
-        if (oc) originCoords = oc;
-        if (dc) destCoords = dc;
+        if (!originCoords && !origin.toLowerCase().includes('my location')) {
+          originCoords = await geocode(origin);
+        }
+        if (!originCoords && userLocation) {
+          originCoords = [userLocation.lng, userLocation.lat];
+        }
+        if (!destCoords) {
+          destCoords = await geocode(destination);
+        }
+      }
+
+      if (!originCoords) {
+        originCoords = userLocation ? [userLocation.lng, userLocation.lat] : [-74.006, 40.7128];
+      }
+      if (!destCoords) {
+        setError('Could not find destination location. Try selecting a suggestion.');
+        setLoading(false);
+        return;
       }
 
       const [fastRoute, safeRoute] = await Promise.all([
@@ -276,8 +408,8 @@ export default function RoutingPanel({ mapRef }) {
       setActiveRoute('safe');
 
       if (mapRef?.current?.getStyle) {
-        drawRouteOnMap(result.safe, 'route-safe-src', 'route-safe', '#10B981');
-        drawRouteOnMap(result.fast, 'route-fast-src', 'route-fast', '#3B82F6', true);
+        drawRouteOnMap(result.safe, 'route-safe-src', 'route-safe', '#10B981', false, destCoords);
+        drawRouteOnMap(result.fast, 'route-fast-src', 'route-fast', '#3B82F6', true, destCoords);
         if (MAPBOX_TOKEN !== 'pk.demo') {
           const coords = result.safe.geometry.coordinates;
           const bounds = coords.reduce(
@@ -333,17 +465,21 @@ export default function RoutingPanel({ mapRef }) {
             <div className="p-4 space-y-3 border-b border-white/8">
               <LocationInput
                 value={origin}
-                onChange={setOrigin}
+                onChange={(v) => { setOrigin(v); setOriginCoordsState(null); }}
+                onSelectCoords={(coords) => setOriginCoordsState(coords)}
                 placeholder={userLocation ? 'My location' : 'Origin address...'}
                 iconClass="w-2.5 h-2.5 rounded-full bg-blue-400 border-2 border-white/20"
+                userLocation={userLocation}
               />
               <div className="absolute left-[1.85rem] h-4 w-px bg-white/20" style={{ marginTop: '-8px' }} />
               <LocationInput
                 value={destination}
-                onChange={setDestination}
+                onChange={(v) => { setDestination(v); setDestCoordsState(null); }}
+                onSelectCoords={(coords) => setDestCoordsState(coords)}
                 placeholder="Destination address..."
                 icon={MapPin}
                 iconColor="text-red-400"
+                userLocation={userLocation}
               />
 
               {error && <p className="text-red-400 text-xs">{error}</p>}

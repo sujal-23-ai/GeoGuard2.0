@@ -50,6 +50,8 @@ const useAppStore = create(
       setRoutingPanelOpen: (open) => set({ routingPanelOpen: open }),
       adminPanelOpen: false,
       setAdminPanelOpen: (open) => set({ adminPanelOpen: open }),
+      settingsPanelOpen: false,
+      setSettingsPanelOpen: (open) => set({ settingsPanelOpen: open }),
       leaderboardOpen: false,
       setLeaderboardOpen: (open) => set({ leaderboardOpen: open }),
       sosActive: false,
@@ -88,15 +90,44 @@ const useAppStore = create(
 
       // Incidents (real-time)
       liveIncidents: [],
+      recentlyCreated: [],   // incidents created by THIS user — survive refetches
       addLiveIncident: (incident) =>
-        set((s) => ({
-          liveIncidents: [incident, ...s.liveIncidents.filter((i) => i.id !== incident.id)].slice(0, 200),
-        })),
+        set((s) => {
+          const newId = incident.id || incident._id;
+          const isDupe = (i) => {
+            const iid = i.id || i._id;
+            return iid && newId && iid === newId;
+          };
+          return {
+            liveIncidents: [incident, ...s.liveIncidents.filter((i) => !isDupe(i))].slice(0, 200),
+            recentlyCreated: [{ ...incident, _createdAt: Date.now() }, ...s.recentlyCreated.filter((i) => !isDupe(i))],
+          };
+        }),
       updateLiveIncident: (update) =>
-        set((s) => ({
-          liveIncidents: s.liveIncidents.map((i) => (i.id === update.id ? { ...i, ...update } : i)),
-        })),
-      setLiveIncidents: (incidents) => set({ liveIncidents: incidents }),
+        set((s) => {
+          const matchId = (i) => i && ((i.id && i.id === update.id) || (i._id && i._id === update.id));
+          return {
+            liveIncidents: s.liveIncidents.map((i) => (matchId(i) ? { ...i, ...update } : i)),
+            // Keep selectedIncident in sync so the detail panel updates instantly
+            selectedIncident: matchId(s.selectedIncident)
+              ? { ...s.selectedIncident, ...update }
+              : s.selectedIncident,
+          };
+        }),
+      setLiveIncidents: (incidents) =>
+        set((s) => {
+          // Keep recently-created incidents alive for 5 minutes so they
+          // aren't wiped by a nearby-refetch that uses a different radius.
+          const GRACE_MS = 5 * 60 * 1000;
+          const now = Date.now();
+          const alive = s.recentlyCreated.filter((r) => now - r._createdAt < GRACE_MS);
+          const fetchedIds = new Set(incidents.map((i) => i.id || i._id));
+          const extras = alive.filter((r) => !fetchedIds.has(r.id) && !fetchedIds.has(r._id));
+          return {
+            liveIncidents: [...incidents, ...extras].slice(0, 200),
+            recentlyCreated: alive,
+          };
+        }),
 
       // Notifications
       notifications: [],

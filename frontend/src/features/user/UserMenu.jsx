@@ -26,7 +26,7 @@ export default function UserMenu({ open, onClose }) {
     user, isAuthenticated, logout,
     notifications, dismissNotification,
     setLeaderboardOpen, setRoutingPanelOpen, setAdminPanelOpen,
-    setProfilePanelOpen,
+    setProfilePanelOpen, setSettingsPanelOpen,
     menuInitialTab, setMenuInitialTab,
   } = useAppStore();
   const [authOpen, setAuthOpen] = useState(false);
@@ -56,7 +56,7 @@ export default function UserMenu({ open, onClose }) {
       ? [{ icon: Lock, label: 'Admin Panel', action: () => handleAction(() => setAdminPanelOpen(true)), highlight: true }]
       : []
     ),
-    { icon: Settings, label: 'Settings', action: () => {} },
+    { icon: Settings, label: 'Settings', action: () => handleAction(() => setSettingsPanelOpen(true)) },
   ];
 
   return (
