@@ -110,3 +110,4 @@ export const sendSOS = async (sosData) => {
 };
 
 export default api;
+// This file provides a centralized API service for the GeoGuard frontend, using Axios to handle HTTP requests to the backend. It includes authentication interceptors, and exports functions for various endpoints like authentication, incidents, users, news, and more.
