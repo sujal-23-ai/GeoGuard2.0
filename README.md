@@ -156,3 +156,11 @@ GeoGuard/
     └── middleware/       # Auth, rate limiting, validation
 ```
 # GeoGuard2.0
+
+## Attribution & Credits
+
+- **Design Inspiration:** Apple Vision Pro (Glassmorphism UI), Uber (Map-first interaction), Waze (Crowdsourced incident reporting).
+- **Map Data:** [Mapbox GL JS](https://www.mapbox.com/) for map rendering and 3D buildings.
+- **Safe Zones Data:** [Overpass API (OpenStreetMap)](https://wiki.openstreetmap.org/wiki/Overpass_API) for fetching nearby hospitals, fire stations, and police stations.
+- **3D Engine:** [React Three Fiber](https://docs.pmnd.rs/react-three-fiber/) & [Three.js](https://threejs.org/) for the interactive 3D globe.
+- **Icons:** Emojis and standard SVG icons.

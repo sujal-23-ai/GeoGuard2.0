@@ -57,7 +57,17 @@ function IncidentFeedItem({ incident, onClick, index }) {
 
 export default function IncidentFeed({ onIncidentClick }) {
   const liveIncidents = useAppStore((s) => s.liveIncidents);
-  const recent = liveIncidents.slice(0, 8);
+
+  // Deduplicate by id/_id and take first 8
+  const recent = [];
+  const seen = new Set();
+  for (const inc of liveIncidents) {
+    const uid = inc.id || inc._id;
+    if (!uid || seen.has(uid)) continue;
+    seen.add(uid);
+    recent.push(inc);
+    if (recent.length >= 8) break;
+  }
 
   return (
     <motion.div
@@ -86,7 +96,7 @@ export default function IncidentFeed({ onIncidentClick }) {
             {recent.length > 0 ? (
               recent.map((incident, i) => (
                 <IncidentFeedItem
-                  key={incident.id}
+                  key={incident.id || incident._id}
                   incident={incident}
                   onClick={onIncidentClick}
                   index={i}

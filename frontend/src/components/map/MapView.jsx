@@ -54,7 +54,7 @@ export default function MapView({ onIncidentClick, mapRef: externalMapRef }) {
   const markersRef = useRef({});
   const [mapReady, setMapReady] = useState(false);
 
-  const { viewport, liveIncidents, userLocation, showHeatmap, showSatellite, showSafeZones, setViewport, selectedIncident } = useAppStore();
+  const { viewport, liveIncidents, userLocation, showHeatmap, showSatellite, showSafeZones, setViewport, selectedIncident, pickingLocation, reportLocation } = useAppStore();
 
   const getMapStyle = () => {
     const token = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -162,7 +162,6 @@ export default function MapView({ onIncidentClick, mapRef: externalMapRef }) {
 
   // Update pick marker
   useEffect(() => {
-    const { pickingLocation, reportLocation } = useAppStore.getState();
     if (!map.current || !mapReady) return;
 
     if (pickingLocation && reportLocation) {
@@ -182,7 +181,13 @@ export default function MapView({ onIncidentClick, mapRef: externalMapRef }) {
         delete markersRef.current['__pick__'];
       }
     }
-  });
+  }, [pickingLocation, reportLocation, mapReady]);
+
+  // Show crosshair cursor while picking location
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    map.current.getCanvas().style.cursor = pickingLocation ? 'crosshair' : '';
+  }, [pickingLocation, mapReady]);
 
   // update map style on toggle
   useEffect(() => {
@@ -222,14 +227,17 @@ export default function MapView({ onIncidentClick, mapRef: externalMapRef }) {
   useEffect(() => {
     if (!map.current || !mapReady) return;
 
-    const current = new Set(liveIncidents.map((i) => i.id));
+    const current = new Set(liveIncidents.map((i) => i.id || i._id));
     Object.entries(markersRef.current).forEach(([id, marker]) => {
+      if (id.startsWith('__')) return;
       if (!current.has(id)) { marker.remove(); delete markersRef.current[id]; }
     });
 
     liveIncidents.forEach((incident) => {
-      if (markersRef.current[incident.id]) {
-        markersRef.current[incident.id].setLngLat([incident.lng, incident.lat]);
+      const iid = incident.id || incident._id;
+      if (!iid) return;
+      if (markersRef.current[iid]) {
+        markersRef.current[iid].setLngLat([incident.lng, incident.lat]);
         return;
       }
 
@@ -237,31 +245,37 @@ export default function MapView({ onIncidentClick, mapRef: externalMapRef }) {
       const color = getSeverityColor(incident.severity);
       const size = 28 + incident.severity * 5;
 
+      // Outer wrapper — Mapbox controls its transform for positioning, so we
+      // must never overwrite el.style.transform.  All visual styles live on
+      // an inner div whose transform we *can* safely change.
       const el = document.createElement('div');
       el.className = 'incident-marker-el';
-      el.style.cssText = `
-        width: ${size}px; height: ${size}px;
+      el.style.cssText = `width: ${size}px; height: ${size}px; cursor: pointer;`;
+
+      const inner = document.createElement('div');
+      inner.style.cssText = `
+        width: 100%; height: 100%;
         border-radius: 50%;
         background: radial-gradient(circle at 40% 35%, ${color}dd, ${color}88);
         border: 2px solid ${color};
         box-shadow: 0 0 ${incident.severity * 6}px ${color}80, 0 0 ${incident.severity * 14}px ${color}30;
-        cursor: pointer;
         display: flex; align-items: center; justify-content: center;
         font-size: ${12 + incident.severity}px;
         transition: transform 0.2s, box-shadow 0.2s;
         animation: markerPulse 2s ease-in-out infinite;
       `;
-      el.innerHTML = cat?.icon || '📍';
-      el.title = incident.title;
+      inner.innerHTML = cat?.icon || '📍';
+      inner.title = incident.title;
+      el.appendChild(inner);
 
       el.addEventListener('mouseenter', () => {
-        el.style.transform = 'scale(1.3)';
-        el.style.boxShadow = `0 0 ${incident.severity * 10}px ${color}, 0 0 ${incident.severity * 20}px ${color}60`;
+        inner.style.transform = 'scale(1.3)';
+        inner.style.boxShadow = `0 0 ${incident.severity * 10}px ${color}, 0 0 ${incident.severity * 20}px ${color}60`;
         el.style.zIndex = '999';
       });
       el.addEventListener('mouseleave', () => {
-        el.style.transform = 'scale(1)';
-        el.style.boxShadow = `0 0 ${incident.severity * 6}px ${color}80`;
+        inner.style.transform = 'scale(1)';
+        inner.style.boxShadow = `0 0 ${incident.severity * 6}px ${color}80`;
         el.style.zIndex = '';
       });
       el.addEventListener('click', (e) => {
@@ -273,7 +287,7 @@ export default function MapView({ onIncidentClick, mapRef: externalMapRef }) {
         .setLngLat([incident.lng, incident.lat])
         .addTo(map.current);
 
-      markersRef.current[incident.id] = marker;
+      markersRef.current[iid] = marker;
     });
 
     // Keep cluster source in sync
@@ -296,13 +310,15 @@ export default function MapView({ onIncidentClick, mapRef: externalMapRef }) {
       if (id.startsWith('__')) return;
       const el = marker.getElement();
       if (!el) return;
+      const inner = el.querySelector('div');
+      if (!inner) return;
       const incident = incidents.find((i) => i.id === id);
       if (!incident) return;
       const color = getSeverityColor(incident.severity);
       const isSelected = id === selectedIncident?.id || id === selectedIncident?._id;
-      el.style.transform = isSelected ? 'scale(1.45)' : 'scale(1)';
+      inner.style.transform = isSelected ? 'scale(1.45)' : 'scale(1)';
       el.style.zIndex = isSelected ? '999' : '';
-      el.style.boxShadow = isSelected
+      inner.style.boxShadow = isSelected
         ? `0 0 0 3px rgba(255,255,255,0.85), 0 0 ${incident.severity * 10}px ${color}, 0 0 ${incident.severity * 20}px ${color}60`
         : `0 0 ${incident.severity * 6}px ${color}80, 0 0 ${incident.severity * 14}px ${color}30`;
     });
@@ -390,6 +406,7 @@ export default function MapView({ onIncidentClick, mapRef: externalMapRef }) {
     if (!map.current || !mapReady) return;
 
     const SZ = '__sz_';
+    // Remove old safe-zone markers and popups
     Object.keys(markersRef.current).forEach((id) => {
       if (id.startsWith(SZ)) { markersRef.current[id].remove(); delete markersRef.current[id]; }
     });
@@ -405,20 +422,123 @@ export default function MapView({ onIncidentClick, mapRef: externalMapRef }) {
         if (!map.current || !mapReady) return;
         (data.elements || []).forEach((el, i) => {
           if (!el.lat || !el.lon) return;
-          const amenity = el.tags?.amenity;
+          const tags = el.tags || {};
+          const amenity = tags.amenity;
           const icon  = amenity === 'hospital' ? '🏥' : amenity === 'police' ? '🚔' : '🚒';
           const color = amenity === 'hospital' ? '#10B981' : amenity === 'police' ? '#3B82F6' : '#F59E0B';
+          const label = amenity === 'hospital' ? 'Hospital' : amenity === 'police' ? 'Police Station' : 'Fire Station';
 
           const dom = document.createElement('div');
-          dom.style.cssText = `
-            width: 34px; height: 34px; border-radius: 50%;
+          dom.style.cssText = `width: 34px; height: 34px; cursor: pointer;`;
+
+          const inner = document.createElement('div');
+          inner.style.cssText = `
+            width: 100%; height: 100%; border-radius: 50%;
             background: ${color}20; border: 2px solid ${color}70;
             display: flex; align-items: center; justify-content: center;
-            font-size: 15px; cursor: default;
+            font-size: 15px;
             box-shadow: 0 0 10px ${color}40;
+            transition: transform 0.2s, box-shadow 0.2s;
           `;
-          dom.innerHTML = icon;
-          dom.title = el.tags?.name || amenity;
+          inner.innerHTML = icon;
+          inner.title = tags.name || label;
+          dom.appendChild(inner);
+
+          // Hover effect — applied to inner div so Mapbox's transform isn't overwritten
+          dom.addEventListener('mouseenter', () => {
+            inner.style.transform = 'scale(1.25)';
+            inner.style.boxShadow = `0 0 18px ${color}70, 0 0 30px ${color}30`;
+          });
+          dom.addEventListener('mouseleave', () => {
+            inner.style.transform = 'scale(1)';
+            inner.style.boxShadow = `0 0 10px ${color}40`;
+          });
+
+          // Build popup content from Overpass tags
+          dom.addEventListener('click', (e) => {
+            e.stopPropagation();
+
+            // Close any existing safe-zone popup
+            if (markersRef.current['__sz_popup__']) {
+              markersRef.current['__sz_popup__'].remove();
+              delete markersRef.current['__sz_popup__'];
+            }
+
+            const name     = tags.name || label;
+            const addr     = [tags['addr:street'], tags['addr:housenumber']].filter(Boolean).join(' ');
+            const city     = tags['addr:city'] || tags['addr:suburb'] || '';
+            const fullAddr = [addr, city, tags['addr:postcode']].filter(Boolean).join(', ');
+            const phone    = tags.phone || tags['contact:phone'] || '';
+            const website  = tags.website || tags['contact:website'] || '';
+            const hours    = tags.opening_hours || '';
+            const operator = tags.operator || '';
+            const wheelchair = tags.wheelchair || '';
+            const emergency  = tags.emergency || '';
+            const beds       = tags.beds || '';
+            const healthcare = tags.healthcare || '';
+
+            // Calculate distance from user
+            const dLat = (el.lat - lat) * 111320;
+            const dLng = (el.lon - lng) * 111320 * Math.cos(lat * Math.PI / 180);
+            const dist = Math.round(Math.sqrt(dLat * dLat + dLng * dLng));
+            const distLabel = dist >= 1000 ? `${(dist / 1000).toFixed(1)} km` : `${dist} m`;
+
+            // Render detail rows
+            const rows = [];
+            if (fullAddr) rows.push(`<div style="display:flex;align-items:flex-start;gap:6px;"><span style="opacity:0.4;flex-shrink:0">📍</span><span>${fullAddr}</span></div>`);
+            if (phone)    rows.push(`<div style="display:flex;align-items:center;gap:6px;"><span style="opacity:0.4">📞</span><a href="tel:${phone}" style="color:${color};text-decoration:none">${phone}</a></div>`);
+            if (website)  rows.push(`<div style="display:flex;align-items:center;gap:6px;"><span style="opacity:0.4">🌐</span><a href="${website}" target="_blank" rel="noopener" style="color:${color};text-decoration:none;word-break:break-all">${website.replace(/^https?:\/\//, '').slice(0, 35)}${website.length > 42 ? '…' : ''}</a></div>`);
+            if (hours)    rows.push(`<div style="display:flex;align-items:flex-start;gap:6px;"><span style="opacity:0.4">🕐</span><span>${hours}</span></div>`);
+            if (operator) rows.push(`<div style="display:flex;align-items:center;gap:6px;"><span style="opacity:0.4">🏢</span><span>${operator}</span></div>`);
+            if (beds)     rows.push(`<div style="display:flex;align-items:center;gap:6px;"><span style="opacity:0.4">🛏️</span><span>${beds} beds</span></div>`);
+            if (healthcare && healthcare !== amenity) rows.push(`<div style="display:flex;align-items:center;gap:6px;"><span style="opacity:0.4">⚕️</span><span style="text-transform:capitalize">${healthcare}</span></div>`);
+
+            // Status badges
+            const badges = [];
+            if (emergency === 'yes') badges.push(`<span style="font-size:9px;padding:2px 8px;border-radius:99px;background:${color}22;color:${color};border:1px solid ${color}40;font-weight:600">🚨 Emergency</span>`);
+            if (wheelchair === 'yes') badges.push(`<span style="font-size:9px;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.15)">♿ Accessible</span>`);
+            if (wheelchair === 'limited') badges.push(`<span style="font-size:9px;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.12)">♿ Limited</span>`);
+
+            const popupHTML = `
+              <div style="min-width:220px;max-width:280px;font-family:system-ui,-apple-system,sans-serif">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                  <div style="width:36px;height:36px;border-radius:10px;background:${color}20;border:1px solid ${color}40;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${icon}</div>
+                  <div style="min-width:0">
+                    <div style="color:white;font-weight:700;font-size:13px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</div>
+                    <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+                      <span style="font-size:10px;color:${color};font-weight:600;text-transform:uppercase;letter-spacing:0.05em">${label}</span>
+                      <span style="font-size:10px;color:rgba(255,255,255,0.35)">·</span>
+                      <span style="font-size:10px;color:rgba(255,255,255,0.5)">${distLabel} away</span>
+                    </div>
+                  </div>
+                </div>
+                ${badges.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">${badges.join('')}</div>` : ''}
+                ${rows.length ? `<div style="display:flex;flex-direction:column;gap:5px;font-size:11px;color:rgba(255,255,255,0.7);border-top:1px solid rgba(255,255,255,0.08);padding-top:8px">${rows.join('')}</div>` : '<div style="font-size:11px;color:rgba(255,255,255,0.35);border-top:1px solid rgba(255,255,255,0.08);padding-top:8px">No additional details available</div>'}
+                <div style="margin-top:8px;display:flex;gap:6px">
+                  <a href="https://www.google.com/maps/dir/?api=1&destination=${el.lat},${el.lon}" target="_blank" rel="noopener"
+                     style="flex:1;text-align:center;font-size:10px;font-weight:600;padding:6px 0;border-radius:8px;background:${color}18;border:1px solid ${color}35;color:${color};text-decoration:none;transition:background 0.2s"
+                     onmouseover="this.style.background='${color}30'" onmouseout="this.style.background='${color}18'">
+                    🧭 Directions
+                  </a>
+                  ${phone ? `<a href="tel:${phone}" style="flex:1;text-align:center;font-size:10px;font-weight:600;padding:6px 0;border-radius:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.7);text-decoration:none;transition:background 0.2s" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">📞 Call</a>` : ''}
+                </div>
+              </div>
+            `;
+
+            const popup = new mapboxgl.Popup({
+              closeButton: true,
+              closeOnClick: true,
+              maxWidth: '300px',
+              offset: 20,
+              className: 'safe-zone-popup',
+            })
+              .setLngLat([el.lon, el.lat])
+              .setHTML(popupHTML)
+              .addTo(map.current);
+
+            markersRef.current['__sz_popup__'] = popup;
+            popup.on('close', () => { delete markersRef.current['__sz_popup__']; });
+          });
 
           const id = `${SZ}${el.id || i}`;
           markersRef.current[id] = new mapboxgl.Marker({ element: dom, anchor: 'center' })

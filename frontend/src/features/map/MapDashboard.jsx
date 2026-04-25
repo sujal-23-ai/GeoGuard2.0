@@ -16,6 +16,7 @@ import RoutingPanel from '../routing/RoutingPanel';
 import AdminPanel from '../admin/AdminPanel';
 import AiAssistant from '../ai/AiAssistant';
 import NewsPanel from '../news/NewsPanel';
+import SettingsPanel from '../user/SettingsPanel';
 import NotificationToast from '../../components/overlays/NotificationToast';
 import { useNearbyIncidents } from '../../hooks/useIncidents';
 import { useSocket } from '../../hooks/useSocket';
@@ -31,6 +32,7 @@ export default function MapDashboard() {
     sosActive, leaderboardOpen, setLeaderboardOpen, adminPanelOpen, setAdminPanelOpen, user,
     aiAssistantOpen, setAiAssistantOpen, profilePanelOpen, setProfilePanelOpen,
     newsPanelOpen, setNewsPanelOpen,
+    settingsPanelOpen, setSettingsPanelOpen,
     clearNavigation, setJourneyCompleted,
     menuOpen, setMenuOpen,
     selectedIncident, setSelectedIncident,
@@ -76,7 +78,7 @@ export default function MapDashboard() {
         <div className="pointer-events-auto"><NavigationHUD onStop={handleStopJourney} /></div>
         <div className="pointer-events-auto"><IncidentFeed onIncidentClick={handleIncidentClick} /></div>
         <div className="pointer-events-auto">
-          <IncidentDetailPanel incident={selectedIncident} onClose={() => setSelectedIncident(null)} />
+          <IncidentDetailPanel onClose={() => setSelectedIncident(null)} />
         </div>
         <div className="pointer-events-auto"><FilterPanel /></div>
         <div className="pointer-events-auto"><MapControls /></div>
@@ -95,6 +97,7 @@ export default function MapDashboard() {
       )}
       <AiAssistant open={aiAssistantOpen} onClose={() => setAiAssistantOpen(false)} />
       <NewsPanel open={newsPanelOpen} onClose={() => setNewsPanelOpen(false)} />
+      <SettingsPanel open={settingsPanelOpen} onClose={() => setSettingsPanelOpen(false)} />
       <NotificationToast />
     </div>
   );
