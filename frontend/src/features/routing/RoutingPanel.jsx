@@ -735,3 +735,4 @@ export default function RoutingPanel({ mapRef }) {
   );
 }
 
+// This file implements the RoutingPanel component for the GeoGuard app, providing route planning functionality with safety considerations. It integrates with Mapbox API for fetching directions, displays multiple route alternatives, calculates risk scores, and allows users to select transportation modes while prioritizing safe paths.
