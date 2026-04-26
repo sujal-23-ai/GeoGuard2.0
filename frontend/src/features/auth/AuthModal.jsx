@@ -4,7 +4,7 @@ import { X, Shield, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import { authApi } from '../../services/api';
 import useAppStore from '../../store/useAppStore';
-
+  
 export default function AuthModal({ open, onClose }) {
   const [mode, setMode] = useState('login');
   const [step, setStep] = useState('form'); // 'form' | 'otp'
