@@ -1,35 +1,82 @@
-<!DOCTYPE html>
+<!-- HTML document for GeoGuard frontend application -->
+<!doctype html>
+<!-- Root HTML element with English language and dark theme class -->
 <html lang="en" class="dark">
+  <!-- Head section containing metadata and external resources -->
   <head>
+    <!-- Character encoding for UTF-8 -->
     <meta charset="UTF-8" />
+    <!-- Favicon link -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Viewport meta for responsive design -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Theme color for mobile browsers -->
     <meta name="theme-color" content="#0B0F1A" />
-    <meta name="description" content="GeoGuard — Real-Time Safety Intelligence Platform" />
+    <!-- Page description -->
+    <meta
+      name="description"
+      content="GeoGuard — Real-Time Safety Intelligence Platform"
+    />
+    <!-- Page title -->
     <title>GeoGuard</title>
+    <!-- Preconnect to Google Fonts for faster loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-    <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.css" rel="stylesheet" />
+    <!-- Google Fonts stylesheet for Geist and Geist Mono fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Mapbox GL CSS for map styling -->
+    <link
+      href="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.css"
+      rel="stylesheet"
+    />
+    <!-- Inline styles for global CSS reset and theming -->
     <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body, #root {
+      /* CSS reset and box-sizing */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      /* Full height and width for html, body, and root div */
+      html,
+      body,
+      #root {
         height: 100%;
         width: 100%;
         overflow: hidden;
-        background-color: #0B0F1A;
-        font-family: 'Geist', 'Inter', system-ui, sans-serif;
+        background-color: #0b0f1a;
+        font-family: "Geist", "Inter", system-ui, sans-serif;
         -webkit-font-smoothing: antialiased;
       }
-      .mapboxgl-map { font: inherit; }
-      ::-webkit-scrollbar { width: 4px; height: 4px; }
-      ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
-      ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+      /* Inherit font for Mapbox elements */
+      .mapboxgl-map {
+        font: inherit;
+      }
+      /* Custom scrollbar styling */
+      ::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 2px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
     </style>
   </head>
+  <!-- Body section -->
   <body>
+    <!-- Root div where React app will mount -->
     <div id="root"></div>
+    <!-- Script to load the main React entry point -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
