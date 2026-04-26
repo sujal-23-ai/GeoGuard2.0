@@ -212,3 +212,4 @@ export default function NewsPanel({ open, onClose }) {
     </AnimatePresence>
   );
 }
+// This file implements the NewsPanel component for the GeoGuard app, displaying real-time news articles related to safety and community events. It categorizes articles by type (crime, weather, accident, etc.), provides filtering tabs, and allows users to view and open news links in new tabs.
