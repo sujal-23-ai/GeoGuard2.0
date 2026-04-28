@@ -2,6 +2,11 @@ import axios from 'axios';
 import useAppStore from '../store/useAppStore';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+const callingAgentApi = axios.create({
+  baseURL: 'http://localhost:8000/api/v1',
+});
 
 const api = axios.create({
   baseURL: `${API_BASE}/api`,
@@ -17,13 +22,7 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response.data,
-  (error) => {
-    if (error.response?.status === 401) {
-      useAppStore.getState().logout();
-    }
-    const message = error.response?.data?.error || error.message || 'Request failed';
-    return Promise.reject(new Error(message));
-  }
+  (error) => Promise.reject(error)
 );
 
 // Auth
@@ -52,7 +51,19 @@ export const usersApi = {
   updateLocation: (data) => api.post('/users/me/location', data),
   getLeaderboard: () => api.get('/users/leaderboard'),
   getProfile: (id) => api.get(`/users/${id}`),
-  sendSOS: (data) => api.post('/users/sos', data),
+  sendSOS: async (data) => {
+    // 1. Existing backend API logic
+    const backendRes = await api.post('/users/sos', data);
+    
+    // 2. Triggering FastAPI Calling Agent API
+    try {
+      await callingAgentApi.post('/sos_call', data);
+    } catch (err) {
+      console.error('Failed to trigger voice call agent:', err);
+    }
+    
+    return backendRes;
+  },
 };
 
 // Media
@@ -80,6 +91,16 @@ export const predictionApi = {
   getRisk:    (params) => api.get('/prediction/risk', { params }),
   getZone:    (params) => api.get('/prediction/zone', { params }),
   ask:        (data)   => api.post('/prediction/ask', data),
+};
+
+export const sendSOS = async (sosData) => {
+  try {
+    const response = await callingAgentApi.post('/sos_call', sosData);
+    return response.data;
+  } catch (error) {
+    console.error('Error sending SOS:', error);
+    throw error;
+  }
 };
 
 export default api;

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Siren, Navigation, Share2 } from 'lucide-react';
-import { usersApi } from '../../services/api';
+import { sendSOS } from '../../services/api';
 import useAppStore from '../../store/useAppStore';
 import { getRiskScore } from '../../utils/helpers';
 import LocationSharePanel from '../../features/share/LocationSharePanel';
@@ -92,10 +92,33 @@ export default function BottomBar() {
                 setSosActive(newState);
                 if (newState) {
                   try {
-                    const loc = useAppStore.getState().userLocation || { lng: -74.006, lat: 40.7128 };
-                    await usersApi.sendSOS({ lng: loc.lng, lat: loc.lat });
-                  } catch (err) {
-                    console.error('Failed to send SOS:', err);
+                    const { user, userLocation, emergencyContacts } = useAppStore.getState();
+                    if (!user || !userLocation) {
+                      console.error("User or location not available for SOS");
+                      setSosActive(false); // Revert state
+                      return;
+                    }
+
+                    if (!emergencyContacts || emergencyContacts.length === 0) {
+                      console.error("No emergency contacts configured for the user.");
+                      // TODO: Add a user-facing toast notification
+                      setSosActive(false); // Revert state
+                      return;
+                    }
+
+                    const sosData = {
+                      username: user.name || 'Unknown User',
+                      latitude: userLocation.lat,
+                      longitude: userLocation.lng,
+                      emergency_contacts: emergencyContacts.map(c => typeof c === 'string' ? c : c.phone) || [],
+                    };
+
+                    await sendSOS(sosData);
+                    // TODO: Add toast notification for success
+                  } catch (error) {
+                    console.error("Failed to send SOS:", error);
+                    // TODO: Add toast notification for error
+                    setSosActive(false); // Revert state on failure
                   }
                 }
               }}
