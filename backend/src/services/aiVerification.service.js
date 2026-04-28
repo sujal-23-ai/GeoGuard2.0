@@ -1,5 +1,6 @@
 // Simulated AI incident verification service
 // Replace keyword logic with a real model call in production
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const RISK_WEIGHTS = {
   fire: 0.92, crime: 0.85, medical: 0.82, accident: 0.78,
@@ -70,6 +71,50 @@ const verifyIncident = async ({ category, description = '', severity, mediaUrls 
 
 // "Is it safe to go to X?" — AI decision assistant
 const assessSafety = async ({ question, lat, lng, recentIncidents = [] }) => {
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-1.5-flash",
+        generationConfig: { responseMimeType: "application/json" }
+      });
+      
+      const prompt = `
+You are an AI Safety Assistant for a real-time incident mapping application.
+The user asks: "${question}"
+Location: Latitude ${lat}, Longitude ${lng}
+Recent incidents nearby (within 3km last 24h):
+${JSON.stringify(recentIncidents, null, 2)}
+
+Analyze the risk based on the incidents and the user's question. 
+Respond ONLY with a JSON object with the following strictly formatted keys:
+- "risk_level": string, exactly one of "low", "medium", or "high"
+- "risk_score": integer from 0 to 100
+- "message": a brief explanation string (include an emoji at the start like ⚠️, 🟡, or ✅)
+- "main_concern": string denoting the primary incident category (e.g., "traffic", "fire", "crime"), or null if mostly safe
+- "incident_count": integer, the total number of nearby incidents
+- "recommendation": short string advising the user what to do
+`;
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+      const parsed = JSON.parse(text);
+      
+      return {
+        risk_level: parsed.risk_level || 'low',
+        risk_score: parsed.risk_score || 0,
+        message: parsed.message || 'Analysis complete.',
+        main_concern: parsed.main_concern || null,
+        incident_count: parsed.incident_count || recentIncidents.length,
+        recommendation: parsed.recommendation || 'Stay alert',
+        generated_at: new Date()
+      };
+    } catch (err) {
+      console.error("Gemini API Error, falling back to basic logic:", err);
+    }
+  }
+
+  // Fallback logic
   const severe = recentIncidents.filter(i => i.severity >= 4).length;
   const moderate = recentIncidents.filter(i => i.severity === 3).length;
   const total = recentIncidents.length;

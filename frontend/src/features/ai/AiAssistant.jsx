@@ -20,16 +20,19 @@ const SUGGESTED = [
 
 export default function AiAssistant({ open, onClose }) {
   const { userLocation } = useAppStore();
-  const [query, setQuery]     = useState('');
-  const [result, setResult]   = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
+  const [query, setQuery]       = useState('');
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
 
   const ask = async (q = query) => {
     if (!q.trim()) return;
+    
+    const userMsg = { id: Date.now(), type: 'user', text: q };
+    setMessages(prev => [...prev, userMsg]);
+    setQuery('');
     setLoading(true);
     setError('');
-    setResult(null);
 
     const loc = userLocation || { lat: 40.7128, lng: -74.006 };
     try {
@@ -39,24 +42,25 @@ export default function AiAssistant({ open, onClose }) {
         lat: loc.lat,
         lng: loc.lng,
       });
-      setResult(data);
+      setMessages(prev => [...prev, { id: Date.now() + 1, type: 'ai', data }]);
     } catch {
       setError('AI service unavailable — using demo data.');
-      // Demo fallback
-      setResult({
-        risk_level: 'medium',
-        risk_score: 42,
-        message: '🟡 Moderate activity detected nearby. A few incidents reported in the last 24 hours.',
-        main_concern: 'traffic',
-        incident_count: 3,
-        recommendation: 'Proceed with caution and stay alert',
-      });
+      setMessages(prev => [...prev, {
+        id: Date.now() + 1,
+        type: 'ai',
+        data: {
+          risk_level: 'medium',
+          risk_score: 42,
+          message: '🟡 Moderate activity detected nearby. A few incidents reported in the last 24 hours.',
+          main_concern: 'traffic',
+          incident_count: 3,
+          recommendation: 'Proceed with caution and stay alert',
+        }
+      }]);
     } finally {
       setLoading(false);
     }
   };
-
-  const cfg = result ? RISK_CONFIG[result.risk_level] || RISK_CONFIG.low : null;
 
   return (
     <AnimatePresence>
@@ -91,122 +95,138 @@ export default function AiAssistant({ open, onClose }) {
                 </button>
               </div>
 
-              <div className="p-5 space-y-4">
+              <div className="p-5 flex flex-col gap-4 max-h-[75vh]">
+                
+                {/* Chat History */}
+                <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin min-h-[300px]">
+                  {messages.length === 0 && !loading && (
+                    <div className="space-y-4 mt-2">
+                      {/* Location indicator */}
+                      <div className="flex items-center gap-2 text-white/40 text-xs bg-white/5 p-3 rounded-xl">
+                        <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
+                        <span>
+                          {userLocation
+                            ? `Location: ${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}`
+                            : 'Default location (enable GPS for accuracy)'}
+                        </span>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="micro-label">SUGGESTED QUESTIONS</p>
+                        <div className="flex flex-col gap-2">
+                          {SUGGESTED.map((s) => (
+                            <button
+                              key={s}
+                              onClick={() => { ask(s); }}
+                              className="text-sm px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition-all text-left flex items-center justify-between group"
+                            >
+                              {s}
+                              <Send className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {messages.map((msg) => {
+                    if (msg.type === 'user') {
+                      return (
+                        <div key={msg.id} className="flex justify-end">
+                          <div className="bg-primary/20 text-white text-sm px-4 py-3 rounded-2xl rounded-tr-sm max-w-[85%] border border-primary/20">
+                            {msg.text}
+                          </div>
+                        </div>
+                      );
+                    } else {
+                      const cfg = RISK_CONFIG[msg.data.risk_level] || RISK_CONFIG.low;
+                      return (
+                        <motion.div
+                          key={msg.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={`rounded-2xl border p-4 space-y-3 max-w-[95%] ${cfg.bg}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <cfg.icon className="w-5 h-5" style={{ color: cfg.color }} />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-white font-bold text-sm">{cfg.label} Zone</span>
+                                <span className="micro-label px-2 py-0.5 rounded-full bg-white/10" style={{ color: cfg.color }}>
+                                  RISK {msg.data.risk_score}%
+                                </span>
+                              </div>
+                              <p className="text-white/70 text-xs mt-0.5">{msg.data.message}</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="flex justify-between">
+                              <span className="micro-label">RISK LEVEL</span>
+                              <span className="micro-label">{msg.data.risk_score}%</span>
+                            </div>
+                            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${msg.data.risk_score}%` }}
+                                transition={{ duration: 0.8, ease: 'easeOut' }}
+                                className="h-full rounded-full"
+                                style={{ backgroundColor: cfg.color }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 pt-1">
+                            {msg.data.incident_count !== undefined && (
+                              <div className="bg-white/5 rounded-xl p-2.5">
+                                <div className="micro-label mb-1">NEARBY INCIDENTS</div>
+                                <div className="text-white font-bold text-lg">{msg.data.incident_count}</div>
+                              </div>
+                            )}
+                            {msg.data.main_concern && (
+                              <div className="bg-white/5 rounded-xl p-2.5">
+                                <div className="micro-label mb-1">MAIN CONCERN</div>
+                                <div className="text-white font-semibold text-sm capitalize">{msg.data.main_concern}</div>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-start gap-2 bg-white/5 rounded-xl p-3">
+                            <CheckCircle className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                            <p className="text-white/80 text-xs leading-relaxed">{msg.data.recommendation}</p>
+                          </div>
+                        </motion.div>
+                      );
+                    }
+                  })}
+
+                  {loading && (
+                    <div className="flex items-center gap-3 py-4 text-white/60 text-sm">
+                      <Loader className="w-5 h-5 text-primary animate-spin" />
+                      Analysing area data...
+                    </div>
+                  )}
+
+                  {error && (
+                    <p className="text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                      {error}
+                    </p>
+                  )}
+                </div>
+
                 {/* Query input */}
-                <div className="flex gap-2">
+                <div className="flex gap-2 shrink-0 pt-3 border-t border-white/10">
                   <input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && ask()}
-                    placeholder="Is it safe to go to...?"
+                    placeholder="Ask about area risk or safe routes..."
                     className="input-glass text-sm flex-1"
                   />
-                  <Button onClick={() => ask()} loading={loading} size="md" className="px-4">
-                    {loading ? null : <Send className="w-4 h-4" />}
+                  <Button onClick={() => ask()} disabled={loading || !query.trim()} size="md" className="px-4">
+                    {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   </Button>
                 </div>
-
-                {/* Location indicator */}
-                <div className="flex items-center gap-2 text-white/40 text-xs">
-                  <MapPin className="w-3 h-3" />
-                  <span>
-                    {userLocation
-                      ? `${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}`
-                      : 'Default location (enable GPS for accuracy)'}
-                  </span>
-                </div>
-
-                {/* Suggestions */}
-                {!result && !loading && (
-                  <div className="space-y-2">
-                    <p className="micro-label">SUGGESTED QUESTIONS</p>
-                    <div className="flex flex-wrap gap-2">
-                      {SUGGESTED.map((s) => (
-                        <button
-                          key={s}
-                          onClick={() => { setQuery(s); ask(s); }}
-                          className="text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all"
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Loading */}
-                {loading && (
-                  <div className="flex items-center gap-3 py-4">
-                    <Loader className="w-5 h-5 text-primary animate-spin" />
-                    <span className="text-white/60 text-sm">Analysing area data...</span>
-                  </div>
-                )}
-
-                {/* Error */}
-                {error && (
-                  <p className="text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-                    {error}
-                  </p>
-                )}
-
-                {/* Result */}
-                {result && cfg && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`rounded-2xl border p-4 space-y-3 ${cfg.bg}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <cfg.icon className="w-5 h-5" style={{ color: cfg.color }} />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-white font-bold text-sm">{cfg.label} Zone</span>
-                          <span className="micro-label px-2 py-0.5 rounded-full bg-white/10" style={{ color: cfg.color }}>
-                            RISK {result.risk_score}%
-                          </span>
-                        </div>
-                        <p className="text-white/70 text-xs mt-0.5">{result.message}</p>
-                      </div>
-                    </div>
-
-                    {/* Risk bar */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between">
-                        <span className="micro-label">RISK LEVEL</span>
-                        <span className="micro-label">{result.risk_score}%</span>
-                      </div>
-                      <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${result.risk_score}%` }}
-                          transition={{ duration: 0.8, ease: 'easeOut' }}
-                          className="h-full rounded-full"
-                          style={{ backgroundColor: cfg.color }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      {result.incident_count !== undefined && (
-                        <div className="bg-white/5 rounded-xl p-2.5">
-                          <div className="micro-label mb-1">NEARBY INCIDENTS</div>
-                          <div className="text-white font-bold text-lg">{result.incident_count}</div>
-                        </div>
-                      )}
-                      {result.main_concern && (
-                        <div className="bg-white/5 rounded-xl p-2.5">
-                          <div className="micro-label mb-1">MAIN CONCERN</div>
-                          <div className="text-white font-semibold text-sm capitalize">{result.main_concern}</div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-start gap-2 bg-white/5 rounded-xl p-3">
-                      <CheckCircle className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                      <p className="text-white/80 text-xs leading-relaxed">{result.recommendation}</p>
-                    </div>
-                  </motion.div>
-                )}
               </div>
             </div>
           </motion.div>

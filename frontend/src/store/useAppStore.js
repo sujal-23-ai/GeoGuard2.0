@@ -8,6 +8,10 @@ const useAppStore = create(
       theme: 'dark',
       toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
 
+      // View
+      view: 'landing', // 'landing', 'app', 'share'
+      setView: (view) => set({ view }),
+
       // Auth
       user: null,
       token: null,

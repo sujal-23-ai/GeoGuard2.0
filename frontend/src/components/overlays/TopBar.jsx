@@ -8,7 +8,7 @@ export default function TopBar({ onMenuOpen }) {
   const {
     socketConnected, connectedUsers, notifications,
     setAnalyticsPanelOpen, setNewsPanelOpen,
-    liveMode, toggleLiveMode, setAiAssistantOpen,
+    liveMode, toggleLiveMode, setAiAssistantOpen, setView
   } = useAppStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -59,7 +59,11 @@ export default function TopBar({ onMenuOpen }) {
     >
       <div className="flex items-center gap-3">
         {/* Logo */}
-        <div className="flex items-center gap-2.5 glass-panel rounded-2xl px-4 py-2.5 shadow-card flex-shrink-0">
+        <div 
+          className="flex items-center gap-2.5 glass-panel rounded-2xl px-4 py-2.5 shadow-card flex-shrink-0 cursor-pointer hover:border-primary/50 transition-colors"
+          onClick={() => setView('landing')}
+          title="Return to Home"
+        >
           <div className="relative">
             <div className="w-8 h-8 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center">
               <Shield className="w-4 h-4 text-primary" />
