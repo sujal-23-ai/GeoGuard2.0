@@ -3,6 +3,7 @@ const User = require('../models/user');
 const Incident = require('../models/incident');
 const SosAlert = require('../models/sosAlert');
 const { cacheGet, cacheSet, cacheDel } = require('../config/redis');
+const sendSosSms = require('../send_sms/sms');
 
 const SHARE_TTL = 1800; // 30 minutes
 
@@ -73,7 +74,12 @@ const getAllUsers = async (req, res) => {
 
 const sosAlert = async (req, res) => {
   try {
-    const { lng, lat, message } = req.body;
+    let { lng, lat, longitude, latitude, message, name } = req.body;
+    
+    // Support alternative field names
+    if (!lng && longitude) lng = longitude;
+    if (!lat && latitude) lat = latitude;
+    
     if (!lng || !lat) return res.status(400).json({ error: 'Location required' });
 
     const alert = await SosAlert.create({
@@ -85,12 +91,23 @@ const sosAlert = async (req, res) => {
     req.io?.emit('sos_alert', {
       id: alert._id,
       userId: req.user._id,
-      userName: req.user.name,
+      userName: name || req.user.name,
       lng: parseFloat(lng),
       lat: parseFloat(lat),
       message,
       createdAt: alert.createdAt,
     });
+
+    // Fire SMS to emergency contacts (non-blocking)
+    const { username, emergency_contacts } = req.body;
+    if (emergency_contacts && emergency_contacts.length > 0) {
+      sendSosSms({
+        username: username || name || req.user.name,
+        latitude: parseFloat(lat),
+        longitude: parseFloat(lng),
+        emergency_contacts,
+      }).catch(err => console.error('SOS SMS dispatch error:', err));
+    }
 
     res.status(201).json({ alert });
   } catch (err) {

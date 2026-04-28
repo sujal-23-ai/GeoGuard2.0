@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Siren, Navigation, Share2 } from 'lucide-react';
-import { sendSOS } from '../../services/api';
+import { usersApi } from '../../services/api';
 import useAppStore from '../../store/useAppStore';
 import { getRiskScore } from '../../utils/helpers';
 import LocationSharePanel from '../../features/share/LocationSharePanel';
@@ -113,7 +113,7 @@ export default function BottomBar() {
                       emergency_contacts: emergencyContacts.map(c => typeof c === 'string' ? c : c.phone) || [],
                     };
 
-                    await sendSOS(sosData);
+                    await usersApi.sendSOS(sosData);
                     // TODO: Add toast notification for success
                   } catch (error) {
                     console.error("Failed to send SOS:", error);
