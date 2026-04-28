@@ -69,11 +69,12 @@ const assignCategory = (title, description) => {
 };
 
 const getNews = async (req, res) => {
+  let resolvedCity = 'local area';
   try {
     let { city, lat, lng } = req.query;
     
     // Resolve location
-    let resolvedCity = String(city || 'local area').slice(0, 80).replace(/[<>"']/g, '');
+    if (city) resolvedCity = String(city).slice(0, 80).replace(/[<>"']/g, '');
     
     if (lat && lng && (!city || city === 'your area' || city === 'local area')) {
       try {

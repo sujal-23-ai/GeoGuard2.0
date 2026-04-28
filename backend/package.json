@@ -28,6 +28,7 @@
     "passport-jwt": "^4.0.1",
     "redis": "^4.6.10",
     "socket.io": "^4.6.2",
+    "twilio": "^6.0.0",
     "winston": "^3.11.0"
   },
   "devDependencies": {
