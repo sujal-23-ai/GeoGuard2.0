@@ -5,7 +5,6 @@ import { AnimatePresence, motion } from "framer-motion";
 // @ts-ignore — react-globe.gl has minimal type definitions
 import Globe from "react-globe.gl";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 type GeoFeature = {
     type: string;

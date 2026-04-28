@@ -3,7 +3,7 @@ import { Layers, Crosshair, Plus, Flame, Navigation, ShieldCheck } from 'lucide-
 import useAppStore from '../../store/useAppStore';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { cn } from '../../utils/cn';
-
+// api
 function ControlButton({ icon: Icon, label, active, onClick, className, isSatellite }) {
   return (
     <motion.button
