@@ -36,6 +36,27 @@ npm install
 npm run dev
 ```
 
+### Calling Agent (SOS Voice Call & SMS)
+
+```bash
+cd calling_agent
+
+# Create & activate a virtual environment
+python3 -m venv venv
+source venv/bin/activate        # Linux/macOS
+# venv\Scripts\activate          # Windows
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start the server
+python3 main.py
+```
+
+The calling agent runs on **http://localhost:8000** and exposes the `/api/v1/sos_call` endpoint used by the frontend SOS button.
+
+for all fastapi **http://localhost:8000/docs** 
+
 ### 2. Database Setup
 
 MongoDB creates the `geoguard` database and all collections automatically on first run. Indexes (including `2dsphere` for geo queries) are created by Mongoose schema definitions.
