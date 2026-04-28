@@ -4,8 +4,10 @@ import useAppStore from '../store/useAppStore';
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+const CALLING_AGENT_BASE = import.meta.env.VITE_CALLING_AGENT_URL || 'http://localhost:8000';
+
 const callingAgentApi = axios.create({
-  baseURL: 'http://localhost:8000/api/v1',
+  baseURL: `${CALLING_AGENT_BASE}/api/v1`,
 });
 
 const api = axios.create({
