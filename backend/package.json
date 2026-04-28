@@ -9,6 +9,7 @@
     "dev:debug": "nodemon --inspect server.js"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "axios": "^1.15.2",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.9.0",
@@ -23,6 +24,7 @@
     "mongoose": "^9.5.0",
     "morgan": "^1.10.0",
     "multer": "^2.1.1",
+    "nodemailer": "^8.0.7",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",

@@ -2,6 +2,7 @@ const { body } = require('express-validator');
 const User = require('../models/user');
 const { generateToken } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
+const { sendWelcomeEmail } = require('../services/email.service');
 
 const registerValidation = [
   body('email').isEmail().normalizeEmail(),
@@ -25,6 +26,9 @@ const register = async (req, res) => {
 
     const user = await User.createUser({ email, password, name });
     const token = generateToken(user._id);
+
+    // Send welcome email asynchronously
+    sendWelcomeEmail(user.email, user.name).catch(console.error);
 
     res.status(201).json({
       token,

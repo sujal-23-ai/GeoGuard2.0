@@ -8,7 +8,8 @@ import useAppStore from '../store/useAppStore';
 import { authApi } from '../services/api';
 
 export default function App() {
-  const [view, setView] = useState('landing');
+  const view = useAppStore((s) => s.view);
+  const setView = useAppStore((s) => s.setView);
   const [isLoading, setIsLoading] = useState(true);
   const [shareToken, setShareToken] = useState(null);
   const theme = useAppStore((s) => s.theme);

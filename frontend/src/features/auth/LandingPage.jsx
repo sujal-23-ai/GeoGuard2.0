@@ -5,6 +5,9 @@ import GeoGlobe from '../../components/3d/GeoGlobe';
 import Button from '../../components/ui/Button';
 import AuthModal from './AuthModal';
 import useAppStore from '../../store/useAppStore';
+import UserMenu from '../user/UserMenu';
+import ProfilePanel from '../user/ProfilePanel';
+import SettingsPanel from '../user/SettingsPanel';
 
 /* ── Animated counter ──────────────────────────────────── */
 function Counter({ end, suffix = '' }) {
@@ -72,7 +75,13 @@ const STATS = [
 /* ── Main component ────────────────────────────────────── */
 export default function LandingPage({ onEnterApp }) {
   const [authOpen, setAuthOpen] = useState(false);
-  const { theme, toggleTheme, isAuthenticated, user, logout, setAnalyticsPanelOpen, setRoutingPanelOpen, setSosActive, setMenuOpen, setMenuInitialTab } = useAppStore();
+  const { 
+    theme, toggleTheme, isAuthenticated, user, logout, 
+    setAnalyticsPanelOpen, setRoutingPanelOpen, setSosActive, 
+    menuOpen, setMenuOpen, setMenuInitialTab,
+    profilePanelOpen, setProfilePanelOpen,
+    settingsPanelOpen, setSettingsPanelOpen
+  } = useAppStore();
   const isDark = theme !== 'light';
 
   const handleFeatureClick = (action) => {
@@ -126,7 +135,13 @@ export default function LandingPage({ onEnterApp }) {
             </button>
             {isAuthenticated ? (
               <div className="flex items-center gap-3 ml-2">
-                <img src={user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=random`} alt="User" className="w-8 h-8 rounded-full border border-white/20" />
+                <img 
+                  src={user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=random`} 
+                  alt="User" 
+                  className="w-8 h-8 rounded-full border border-white/20 cursor-pointer hover:border-primary/50 transition-colors" 
+                  onClick={() => setMenuOpen(true)}
+                  title="Open Menu"
+                />
                 <Button variant="ghost" size="sm" onClick={logout} className={isDark ? '' : '!text-[#0F172A]'}>Logout</Button>
                 <Button size="sm" onClick={onEnterApp}>Launch App</Button>
               </div>
@@ -366,6 +381,9 @@ export default function LandingPage({ onEnterApp }) {
       </footer>
 
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      <UserMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <ProfilePanel open={profilePanelOpen} onClose={() => setProfilePanelOpen(false)} />
+      <SettingsPanel open={settingsPanelOpen} onClose={() => setSettingsPanelOpen(false)} />
     </div>
   );
 }
