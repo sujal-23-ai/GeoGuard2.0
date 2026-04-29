@@ -2,7 +2,7 @@ const { body } = require('express-validator');
 const User = require('../models/user');
 const { generateToken } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
-const { sendWelcomeEmail } = require('../services/email.service');
+const { sendWelcomeEmail, sendLoginEmail } = require('../services/email.service');
 
 const registerValidation = [
   body('email').isEmail().normalizeEmail(),
@@ -51,6 +51,10 @@ const login = async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
     const token = generateToken(user._id);
+
+    // Send login welcome email asynchronously (fire-and-forget)
+    sendLoginEmail(user.email, user.name).catch(console.error);
+
     res.json({
       token,
       user: {
