@@ -1,187 +1,318 @@
 # GeoGuard — Real-Time Safety Intelligence Platform
 
-A hyper-realistic, 3D interactive, map-first web application combining Uber-style UX, Waze crowdsourcing, Palantir analytics, and Apple Vision Pro-inspired glassmorphism UI.
+GeoGuard is a map-first safety intelligence platform that combines crowdsourced incident reporting, live websocket updates, AI-assisted risk scoring, safe routing, emergency alerts, admin moderation, and a polished 3D landing experience.
+
+It is built to help users understand what is happening around them in real time, respond faster during emergencies, and make safer route and location decisions.
 
 ## Tech Stack
 
-**Frontend:** React (Vite) · Tailwind CSS · ShadCN UI · Framer Motion · Three.js · Mapbox GL JS · Zustand · React Query · Recharts
+**Frontend:** React (Vite), Tailwind CSS, Framer Motion, React Query, Zustand, Mapbox GL JS, React Three Fiber, Recharts
 
-**Backend:** Node.js · Express.js · Socket.IO · JWT Auth · Google OAuth · Passport.js
+**Backend:** Node.js, Express.js, Socket.IO, JWT Auth, Passport.js, Google OAuth
 
-**Database:** MongoDB (Mongoose + 2dsphere geo queries) · Redis (caching + pub/sub)
+**Database & Cache:** MongoDB (Mongoose + `2dsphere` geo queries), Redis (cache + temporary session storage)
 
-## Quick Start
+**Emergency Services:** FastAPI calling agent, Twilio SMS, optional external voice-call provider
 
-### Prerequisites
-- Node.js 18+
-- MongoDB 6+ (local or Atlas)
-- Redis (optional — app gracefully degrades without it)
-- Mapbox account (free tier works)
+## Core Idea
 
-### 1. Clone & Setup
+GeoGuard turns safety information into a live map experience.
+
+Instead of showing a static list of reports, it continuously collects incidents from users, pushes updates in real time, scores risk for places and routes, and provides tools for emergency response and community moderation.
+
+## Main Features
+
+### 1. Live Map Dashboard
+
+- Real-time incident markers with severity-based glow effects
+- Cluster view at low zoom levels to reduce map clutter
+- 3D building extrusion layer when a Mapbox token is available
+- Heatmap toggle for density visualization
+- Satellite / dark map toggle
+- Safe-zone overlay showing hospitals, police stations, and fire stations
+- User location marker with auto focus and manual map controls
+
+### 2. Incident Reporting
+
+- Multi-step incident reporting flow
+- 10 categories with emoji icons
+- 5-level severity slider
+- Voice input support in the report form
+- Media upload for images and videos
+- GPS location auto-fill and map click-to-place support
+- Confirmation count for live validation of reports
+- Point rewards for verified reporting activity
+
+### 3. Realtime Engine
+
+- WebSocket events for `new_incident`, `update_incident`, `sos_alert`, and `user_count`
+- Live incident feed sidebar
+- Toast notifications for alerts and updates
+- Socket-based location updates for danger-zone detection
+- Live mode toggle for high-frequency tracking
+
+### 4. AI and Prediction
+
+- AI-assisted incident verification
+- Safety assistant for questions like “Is it safe to go there?”
+- Risk prediction by area
+- Zone analysis using incident data + weather + traffic fusion
+- Explainable risk summaries based on visible incidents
+
+### 5. Routing
+
+- Safe route vs fast route comparison
+- Route risk scoring based on incident proximity
+- Active journey tracking with GPS updates
+- Destination arrival detection
+
+### 6. SOS Mode
+
+- One-tap emergency broadcast
+- In-app SOS alert overlay
+- SMS notification to emergency contacts
+- Voice-call escalation through the calling agent
+- Emergency event broadcast to all connected clients
+
+### 7. Authentication and Roles
+
+- Email/password login with JWT
+- Google OAuth login
+- User profile with trust score and points
+- Leaderboard for gamified participation
+- Role-based access control for admin and moderator tools
+
+### 8. Admin Console
+
+- Dashboard overview for users and reports
+- Incident verification and visibility control
+- User ban / unban controls
+- Role changes between user, moderator, and admin
+- Searchable user management
+
+### 9. News Panel
+
+- Local safety news by city or current area
+- GNews integration when API key is available
+- Demo fallback when the news API is missing
+
+### 10. 3D Landing Experience
+
+- React Three Fiber globe
+- Animated arcs and hotspot markers
+- Glassmorphism-style hero section
+- Interactive, presentation-friendly landing page
+
+## Project Flow
+
+1. The user opens the app and lands on the 3D landing page.
+2. The app fetches the user’s location and loads nearby incidents.
+3. The frontend connects to Socket.IO for live updates.
+4. New reports are submitted through the report panel.
+5. The backend validates, enriches, stores, and broadcasts the incident.
+6. Analytics, AI assistant, routing, admin tools, and news use the latest data.
+7. SOS can notify the community instantly and escalate to SMS / voice call.
+
+## Folder Structure
+
+```text
+GeoGuard/
+├── frontend/
+│   └── src/
+│       ├── app/            # App bootstrap and view switching
+│       ├── components/     # Shared UI, map, overlays, and 3D visuals
+│       ├── features/       # Feature modules: auth, map, incidents, news, AI, admin, routing, user
+│       ├── hooks/          # React hooks for location, incidents, sockets, news
+│       ├── services/       # Axios API client and Socket.IO client
+│       ├── store/          # Zustand global state
+│       └── utils/          # Helpers, constants, and utility functions
+├── backend/
+│   └── src/
+│       ├── config/         # MongoDB, Redis, Passport config
+│       ├── controllers/    # Request handlers
+│       ├── middleware/     # Auth, validation, and rate limiting
+│       ├── models/         # Mongoose models
+│       ├── routes/         # Express routers
+│       ├── services/       # AI, prediction, email, cloudinary, and data fusion services
+│       └── sockets/        # Socket.IO events and background danger-zone checks
+└── calling_agent/          # FastAPI service for SOS voice-call escalation
+```
+
+## How the App Is Connected
+
+### Frontend shell
+
+- The app starts from [frontend/src/main.jsx](frontend/src/main.jsx)
+- View switching happens in [frontend/src/app/App.jsx](frontend/src/app/App.jsx)
+- The main map experience is assembled in [frontend/src/features/map/MapDashboard.jsx](frontend/src/features/map/MapDashboard.jsx)
+
+### Server bootstrap
+
+- Express is configured in [backend/src/app.js](backend/src/app.js)
+- MongoDB and Redis are initialized in [backend/server.js](backend/server.js)
+- Socket.IO is attached to the same HTTP server for realtime updates
+
+### Data flow
+
+1. The frontend calls REST endpoints through the Axios client in [frontend/src/services/api.js](frontend/src/services/api.js).
+2. The backend routes forward requests to controllers.
+3. Controllers use models and services to read / write data.
+4. Socket.IO pushes changes back to the frontend immediately.
+
+## Run Locally
+
+### Backend
 
 ```bash
-# Backend
 cd backend
 cp .env.example .env
-# Edit .env with your database credentials
-npm install
-npm run dev
-
-# Frontend (new terminal)
-cd frontend
-cp .env.example .env
-# Add your VITE_MAPBOX_TOKEN to .env
 npm install
 npm run dev
 ```
 
-### Calling Agent (SOS Voice Call & SMS)
+### Frontend
+
+```bash
+cd frontend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+### Calling Agent (optional)
 
 ```bash
 cd calling_agent
-
-# Create & activate a virtual environment
 python3 -m venv venv
-source venv/bin/activate        # Linux/macOS
-# venv\Scripts\activate          # Windows
-
-# Install dependencies
+source venv/bin/activate
 pip install -r requirements.txt
-
-# Start the server
 python3 main.py
 ```
 
-The calling agent runs on **http://localhost:8000** and exposes the `/api/v1/sos_call` endpoint used by the frontend SOS button.
+FastAPI docs:
 
-for all fastapi **http://localhost:8000/docs** 
-
-### 2. Database Setup
-
-MongoDB creates the `geoguard` database and all collections automatically on first run. Indexes (including `2dsphere` for geo queries) are created by Mongoose schema definitions.
-
-For **MongoDB Atlas**: replace `MONGODB_URI` with your Atlas connection string.
-
-### 3. Environment Variables
-
-**Backend** (`backend/.env`):
+```text
+http://localhost:8000/docs
 ```
+
+## Environment Variables
+
+### Backend (`backend/.env`)
+
+```bash
 MONGODB_URI=mongodb://localhost:27017/geoguard
-# Atlas: mongodb+srv://user:pass@cluster.mongodb.net/geoguard
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=your-secret-key
-GOOGLE_CLIENT_ID=...        # Optional
-GOOGLE_CLIENT_SECRET=...    # Optional
 FRONTEND_URL=http://localhost:5173
+
+# Optional integrations
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_CALLBACK_URL=http://localhost:5000/api/auth/google/callback
+GNEWS_API_KEY=...
+OPENWEATHER_API_KEY=...
+CLOUDINARY_CLOUD_NAME=...
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+SMTP_HOST=...
+SMTP_PORT=587
+SMTP_USER=...
+SMTP_PASS=...
+TWILIO_ACCOUNT_SID=...
+TWILIO_AUTH_TOKEN=...
+TWILIO_PHONE_NUMBER=...
+BLAND_API_KEY=...
+GEMINI_API_KEY=...
 ```
 
-**Frontend** (`frontend/.env`):
-```
-VITE_MAPBOX_TOKEN=pk.eyJ1...   # Get from mapbox.com (free)
+### Frontend (`frontend/.env`)
+
+```bash
 VITE_API_URL=http://localhost:5000
 VITE_SOCKET_URL=http://localhost:5000
+VITE_MAPBOX_TOKEN=...
+VITE_CALLING_AGENT_URL=http://localhost:8000
 ```
-
-> **Demo mode:** Without a Mapbox token, the map shows a solid dark background. All other features (3D landing, incident feed, analytics, SOS, etc.) work fully.
-
-## Features
-
-### 🗺️ Live Map Dashboard
-- Real-time incident markers with severity-colored glow effects
-- Mapbox cluster view at low zoom (zoom < 11) — expands on click
-- 3D building extrusion layer (with Mapbox token)
-- Heatmap toggle for density visualization
-- Satellite/dark map toggle
-- Safe Zones overlay — hospitals, police stations, fire stations (via Overpass API)
-
-### 📋 Incident Reporting
-- 10 categories with emoji icons
-- 5-level severity slider with AI tag simulation
-- GPS location auto-fill with map click-to-place
-- +10 points earned per verified report
-- "Still Happening" confirm button — tracks live confirmation count
-
-### ⏱️ Filtering
-- Filter by category, severity, and radius
-- **Time window filter**: 1h / 6h / 24h / 7d
-- Active filter count badge
-
-### 📡 Real-Time Engine
-- WebSocket events: `new_incident`, `update_incident`, `sos_alert`, `user_count`
-- Live incident feed sidebar with toast notifications
-- Socket-based location updates for server-side danger zone detection
-
-### 📊 Analytics Dashboard
-- Category breakdown bar chart
-- Severity distribution pie chart
-- Hourly incident trend line chart
-- Dynamic risk score with explainable label ("N incidents · max sev X")
-
-### 🆘 SOS Mode
-- One-tap emergency broadcast
-- Blinking red border overlay
-- Alert pushed to all connected users
-
-### 🔐 Authentication
-- JWT email/password
-- Google OAuth
-- User profile with trust score and gamification points
-- Leaderboard
-
-### 🌍 3D Landing Globe
-- React Three Fiber globe with Fresnel atmosphere shader
-- Instanced data markers per country (severity-colored)
-- Animated arcs between high-risk hotspots
-- Hover tooltips, click-to-focus camera
-- Global / High-Risk-Only toggle
-
-## Screenshots
-
-> Add screenshots to `docs/screenshots/` and reference them here.
 
 ## API Reference
 
-```
+### Auth
+
+```text
 POST /api/auth/register
 POST /api/auth/login
 GET  /api/auth/me
+GET  /api/auth/google
+GET  /api/auth/google/callback
+```
 
+### Incidents
+
+```text
 GET  /api/incidents/nearby?lng=&lat=&radius=
 GET  /api/incidents/analytics?days=7
+GET  /api/incidents
+GET  /api/incidents/:id
 POST /api/incidents
 POST /api/incidents/:id/vote
+POST /api/incidents/:id/confirm
+DELETE /api/incidents/:id
+```
 
+### Users
+
+```text
+GET  /api/users/me
+PUT  /api/users/me
+POST /api/users/me/location
 GET  /api/users/leaderboard
 POST /api/users/sos
+POST /api/users/share-location
+GET  /api/users/share-location/:token
+PUT  /api/users/share-location/:token
+DELETE /api/users/share-location/:token
 ```
 
-## Project Structure
+### Prediction and AI
 
+```text
+GET  /api/prediction/risk?lat=&lng=&radius=
+GET  /api/prediction/zone?lat=&lng=
+POST /api/prediction/ask
 ```
-GeoGuard/
-├── frontend/src/
-│   ├── app/              # App entry & routing
-│   ├── components/       # Reusable UI (map, 3d, cards, overlays)
-│   ├── features/         # Feature modules (auth, incidents, analytics, map, user)
-│   ├── hooks/            # Custom React hooks
-│   ├── store/            # Zustand global state
-│   ├── services/         # API client & Socket.IO
-│   └── utils/            # Helpers, constants
-└── backend/src/
-    ├── config/           # DB, Redis, Passport
-    ├── controllers/      # Request handlers
-    ├── models/           # PostgreSQL queries
-    ├── routes/           # Express routers
-    ├── sockets/          # Socket.IO events
-    └── middleware/       # Auth, rate limiting, validation
+
+### News
+
+```text
+GET  /api/news?city=&lat=&lng=
 ```
-# GeoGuard2.0
 
-## Attribution & Credits
+### Admin
 
-- **Design Inspiration:** Apple Vision Pro (Glassmorphism UI), Uber (Map-first interaction), Waze (Crowdsourced incident reporting).
-- **Map Data:** [Mapbox GL JS](https://www.mapbox.com/) for map rendering and 3D buildings.
-- **Safe Zones Data:** [Overpass API (OpenStreetMap)](https://wiki.openstreetmap.org/wiki/Overpass_API) for fetching nearby hospitals, fire stations, and police stations.
-- **3D Engine:** [React Three Fiber](https://docs.pmnd.rs/react-three-fiber/) & [Three.js](https://threejs.org/) for the interactive 3D globe.
-- **Icons:** Emojis and standard SVG icons.
+```text
+GET   /api/admin/stats
+GET   /api/admin/incidents
+PATCH /api/admin/incidents/:id/verify
+PATCH /api/admin/incidents/:id/toggle
+GET   /api/admin/users
+PATCH /api/admin/users/:id/toggle
+PATCH /api/admin/users/:id/role
+```
+
+## Notes for Evaluation
+
+- Redis is optional. If it is unavailable, GeoGuard keeps running with cache disabled.
+- If the Mapbox token is missing, the UI falls back to a dark demo map style.
+- Admin access is role-based. A user must have `role: admin` or `role: moderator` to see the admin panel.
+- The backend uses geospatial indexes (`2dsphere`) for nearby searches and route/risk computations.
+- The calling agent is a separate FastAPI service that handles SOS voice escalation.
+
+
+
+## Attribution
+
+- Design inspiration: Apple Vision Pro, Uber, Waze
+- Map rendering: Mapbox GL JS
+- Safe-zone data: Overpass API / OpenStreetMap
+- 3D visuals: React Three Fiber and Three.js
+- Icons: Lucide and emoji-based markers
