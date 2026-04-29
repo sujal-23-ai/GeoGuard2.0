@@ -29,9 +29,9 @@ const start = async () => {
     setupSockets(io);
 
     server.listen(PORT, () => {
-      console.log(`\n🚀 GeoGuard backend running on http://localhost:${PORT}`);
-      console.log(`📡 WebSocket server ready`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}\n`);
+      console.log(`\nGeoGuard backend running on http://localhost:${PORT}`);
+      console.log(` WebSocket server ready`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}\n`);
     });
 
     const shutdown = async (signal) => {
