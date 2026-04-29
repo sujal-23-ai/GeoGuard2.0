@@ -2,7 +2,7 @@ const passport = require('passport');
 const { Strategy: JwtStrategy, ExtractJwt } = require('passport-jwt');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const User = require('../models/user');
-const { sendWelcomeEmail } = require('../services/email.service');
+const { sendWelcomeEmail, sendLoginEmail } = require('../services/email.service');
 
 const configurePassport = () => {
   passport.use(
@@ -40,6 +40,10 @@ const configurePassport = () => {
               user.googleId = profile.id;
               user.avatarUrl = user.avatarUrl || profile.photos[0]?.value;
               await user.save();
+
+              // Send welcome-back email for returning Google users
+              sendLoginEmail(user.email, user.name).catch(console.error);
+
               return done(null, user);
             }
 
