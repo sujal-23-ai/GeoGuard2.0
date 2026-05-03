@@ -4,12 +4,15 @@ import useAppStore from '../../store/useAppStore';
 import { getCategory, timeAgo, getSeverityColor } from '../../utils/helpers';
 import { SeverityBadge } from '../ui/Badge';
 
-function IncidentFeedItem({ incident, onClick, index }) {
+import { forwardRef } from 'react';
+
+const IncidentFeedItem = forwardRef(({ incident, onClick, index }, ref) => {
   const cat = getCategory(incident.category);
   const color = getSeverityColor(incident.severity);
 
   return (
     <motion.div
+      ref={ref}
       layout
       initial={{ opacity: 0, x: -24 }}
       animate={{ opacity: 1, x: 0 }}
@@ -53,7 +56,7 @@ function IncidentFeedItem({ incident, onClick, index }) {
       </div>
     </motion.div>
   );
-}
+});
 
 export default function IncidentFeed({ onIncidentClick }) {
   const liveIncidents = useAppStore((s) => s.liveIncidents);
@@ -74,7 +77,7 @@ export default function IncidentFeed({ onIncidentClick }) {
       initial={{ opacity: 0, x: -40 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.4, delay: 0.2 }}
-      className="absolute left-4 top-24 w-72 z-20 pointer-events-auto"
+      className="absolute left-4 top-24 w-72 z-20 pointer-events-auto hidden md:block"
     >
       <div className="glass-panel rounded-2xl shadow-card overflow-hidden">
         {/* Header */}

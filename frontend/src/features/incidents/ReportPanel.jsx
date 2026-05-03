@@ -450,8 +450,8 @@ export default function ReportPanel() {
                         </div>
 
                         {!isAuthenticated && (
-                          <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl p-3 text-xs text-amber-300">
-                            Sign in to earn +10 points for verified reports.
+                          <div className="bg-red-500/10 border border-red-500/25 rounded-xl p-3 text-xs text-red-400">
+                            You must be signed in to submit an incident report.
                           </div>
                         )}
 
@@ -459,7 +459,7 @@ export default function ReportPanel() {
                           <Button variant="secondary" size="sm" onClick={() => setStep(2)}>Back</Button>
                           <Button size="sm" className="flex-1" onClick={handleSubmit}
                             loading={createMutation.isPending || uploading}
-                            disabled={!form.title || !form.category || uploading}>
+                            disabled={!isAuthenticated || !form.title || !form.category || uploading}>
                             Submit Report
                           </Button>
                         </div>

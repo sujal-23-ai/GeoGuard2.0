@@ -15,6 +15,7 @@ const adminRoutes = require('./routes/admin');
 const mediaRoutes = require('./routes/media');
 const predictionRoutes = require('./routes/prediction');
 const newsRoutes = require('./routes/news');
+const chatRoutes = require('./routes/chat');
 
 const createApp = () => {
   const app = express();
@@ -52,6 +53,7 @@ const createApp = () => {
   app.use('/api/media', mediaRoutes);
   app.use('/api/prediction', predictionRoutes);
   app.use('/api/news', newsRoutes);
+  app.use('/api/chat', chatRoutes);
 
   app.use((err, req, res, next) => {
     console.error('Unhandled error:', err);
