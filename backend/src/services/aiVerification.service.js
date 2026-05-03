@@ -239,10 +239,13 @@ Respond strictly with JSON:
     }
   }
 
-  // Basic heuristic fallback
+  // Basic heuristic fallback (if AI is down)
   const combined = `${title} ${description}`;
-  const hasSpamChars = /(.)\1{5,}/.test(combined);
-  const isGibberish = combined.length > 8 && !/[aeiouy]/i.test(combined);
+  // Check for repeated chars (aaaa)
+  const hasSpamChars = /(.)\1{4,}/.test(combined);
+  // Check if it's gibberish (mostly consonants, or very short and no vowels)
+  const hasNoVowels = !/[aeiouy]/i.test(combined);
+  const isGibberish = (combined.length > 5 && hasNoVowels);
 
   if (hasSpamChars || isGibberish) {
     return { is_spam: true, reason: 'Text appears to be gibberish or spam.' };
