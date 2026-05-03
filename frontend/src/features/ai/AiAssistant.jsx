@@ -23,8 +23,17 @@ export default function AiAssistant({ open, onClose }) {
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false); // default muted
   const [micSupported, setMicSupported] = useState(true);
   
+  // Refs to avoid stale closures in speech recognition callback
+  const isVoiceEnabledRef = useRef(isVoiceEnabled);
+  const askRef = useRef(null);
+  
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
+
+  // Keep voice ref in sync
+  useEffect(() => {
+    isVoiceEnabledRef.current = isVoiceEnabled;
+  }, [isVoiceEnabled]);
 
   // Preload voices
   useEffect(() => {
@@ -88,7 +97,11 @@ export default function AiAssistant({ open, onClose }) {
 
         if (finalTranscript) {
           setQuery(finalTranscript);
-          ask(finalTranscript); // Auto send when the phrase is complete
+          // Auto-enable voice output when user speaks via mic
+          setIsVoiceEnabled(true);
+          isVoiceEnabledRef.current = true;
+          // Use askRef to always call the latest version of ask
+          if (askRef.current) askRef.current(finalTranscript);
           try { recognitionRef.current.stop(); } catch (e) {}
         } else if (interimTranscript) {
           setQuery(interimTranscript); // Show live transcription in the input box
@@ -136,7 +149,7 @@ export default function AiAssistant({ open, onClose }) {
   };
 
   const speak = (text) => {
-    if (!isVoiceEnabled || !('speechSynthesis' in window)) return;
+    if (!isVoiceEnabledRef.current || !('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     
@@ -191,6 +204,11 @@ export default function AiAssistant({ open, onClose }) {
       setLoading(false);
     }
   };
+
+  // Keep askRef in sync so speech recognition always uses the latest ask()
+  useEffect(() => {
+    askRef.current = ask;
+  });
 
   return (
     <AnimatePresence>
