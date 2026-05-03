@@ -9,16 +9,16 @@ const RISK_WEIGHTS = {
 };
 
 const AI_TAGS = {
-  fire:           ['fire', 'smoke', 'flames', 'burning', 'evacuation'],
-  crime:          ['theft', 'assault', 'suspicious', 'police', 'weapon'],
-  medical:        ['injury', 'ambulance', 'hospital', 'unconscious', 'bleeding'],
-  accident:       ['collision', 'crash', 'vehicle', 'emergency', 'wreck'],
-  hazard:         ['danger', 'obstacle', 'unstable', 'falling', 'leak'],
-  weather:        ['storm', 'flood', 'ice', 'wind', 'lightning', 'rain'],
+  fire: ['fire', 'smoke', 'flames', 'burning', 'evacuation'],
+  crime: ['theft', 'assault', 'suspicious', 'police', 'weapon'],
+  medical: ['injury', 'ambulance', 'hospital', 'unconscious', 'bleeding'],
+  accident: ['collision', 'crash', 'vehicle', 'emergency', 'wreck'],
+  hazard: ['danger', 'obstacle', 'unstable', 'falling', 'leak'],
+  weather: ['storm', 'flood', 'ice', 'wind', 'lightning', 'rain'],
   infrastructure: ['power', 'outage', 'road', 'construction', 'utility'],
-  traffic:        ['congestion', 'jam', 'blocked', 'detour', 'accident'],
-  noise:          ['loud', 'disturbance', 'party', 'noise', 'alarm'],
-  other:          ['alert', 'notice', 'warning', 'unknown'],
+  traffic: ['congestion', 'jam', 'blocked', 'detour', 'accident'],
+  noise: ['loud', 'disturbance', 'party', 'noise', 'alarm'],
+  other: ['alert', 'notice', 'warning', 'unknown'],
 };
 
 const SENSITIVE_KEYWORDS = [
@@ -36,7 +36,7 @@ const verifyIncident = async ({ category, description = '', severity, mediaUrls 
 
   // Description quality boost
   const words = description.toLowerCase().split(/\W+/).filter(w => w.length > 3);
-  if (words.length > 5)  confidence = Math.min(1, confidence + 0.04);
+  if (words.length > 5) confidence = Math.min(1, confidence + 0.04);
   if (words.length > 12) confidence = Math.min(1, confidence + 0.04);
 
   // Base tags logic
@@ -48,7 +48,7 @@ const verifyIncident = async ({ category, description = '', severity, mediaUrls 
   if (process.env.GEMINI_API_KEY && mediaUrls.length > 0) {
     try {
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ 
+      const model = genAI.getGenerativeModel({
         model: "gemini-2.5-flash",
         generationConfig: { responseMimeType: "application/json" }
       });
@@ -132,11 +132,11 @@ const assessSafety = async ({ question, lat, lng, recentIncidents = [] }) => {
   if (process.env.GEMINI_API_KEY) {
     try {
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ 
+      const model = genAI.getGenerativeModel({
         model: "gemini-2.5-flash",
         generationConfig: { responseMimeType: "application/json" }
       });
-      
+
       const prompt = `
 You are an AI Safety Assistant for a real-time incident mapping application.
 The user asks: "${question}"
@@ -157,7 +157,7 @@ Respond ONLY with a JSON object with the following strictly formatted keys:
       const response = await result.response;
       const text = response.text();
       const parsed = JSON.parse(text);
-      
+
       return {
         risk_level: parsed.risk_level || 'low',
         risk_score: parsed.risk_score || 0,
@@ -199,8 +199,8 @@ Respond ONLY with a JSON object with the following strictly formatted keys:
     recommendation: riskLevel === 'high'
       ? 'Take an alternative route or delay your trip'
       : riskLevel === 'medium'
-      ? 'Proceed with caution and stay alert'
-      : 'Safe to proceed normally',
+        ? 'Proceed with caution and stay alert'
+        : 'Safe to proceed normally',
     generated_at: new Date(),
   };
 };
@@ -210,7 +210,7 @@ const validateIncidentText = async (category, title, description = '') => {
   if (process.env.GEMINI_API_KEY) {
     try {
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ 
+      const model = genAI.getGenerativeModel({
         model: "gemini-2.5-flash",
         generationConfig: { responseMimeType: "application/json" }
       });

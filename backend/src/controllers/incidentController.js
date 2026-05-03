@@ -53,7 +53,7 @@ const KEYWORD_TAGS = {
 const simulateAITags = (category, description) => {
   const base = AI_TAGS[category] || ['alert'];
   const words = (description || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
-  
+
   // Extract keyword-based tags
   const contextual = [];
   words.forEach(w => {
@@ -61,12 +61,12 @@ const simulateAITags = (category, description) => {
       contextual.push(KEYWORD_TAGS[w]);
     }
   });
-  
+
   // Extract long meaningful words from description as potential tags
   const descriptive = words
     .filter(w => w.length > 5 && !['about', 'there', 'where', 'which', 'would', 'could', 'should', 'these', 'those', 'their', 'other', 'after', 'before', 'between', 'through', 'because', 'around'].includes(w))
     .slice(0, 2);
-  
+
   return [...new Set([...base.slice(0, 2), ...contextual.slice(0, 3), ...descriptive])].slice(0, 6);
 };
 
@@ -132,20 +132,20 @@ const createIncident = async (req, res) => {
         if (aiResult.is_fake) {
           // It was a fake! Revert and penalize.
           await Incident.findByIdAndUpdate(incident._id, { isFake: true, isActive: false });
-          
+
           if (req.user) {
             // Deduct the optimistic +10 points AND slap a -20 point penalty
             await User.penalizeTrust(req.user._id, 20);
             await User.addPoints(req.user._id, -10);
           }
-          
+
           await cacheDelPattern('incidents:nearby:*');
           // Tell active clients to ghost the incident off their maps
-          req.io?.emit('update_incident', { 
-            id: incident._id, 
-            isActive: false, 
-            isFake: true, 
-            authorId: req.user ? req.user._id : null 
+          req.io?.emit('update_incident', {
+            id: incident._id,
+            isActive: false,
+            isFake: true,
+            authorId: req.user ? req.user._id : null
           });
         } else {
           // It's genuine! Update with rich AI data.
@@ -156,10 +156,10 @@ const createIncident = async (req, res) => {
             riskLevel: aiResult.risk_level,
             isSensitive: aiResult.is_sensitive,
           });
-          req.io?.emit('update_incident', { 
-            id: incident._id, 
-            aiTags: aiResult.ai_tags, 
-            riskLevel: aiResult.risk_level 
+          req.io?.emit('update_incident', {
+            id: incident._id,
+            aiTags: aiResult.ai_tags,
+            riskLevel: aiResult.risk_level
           });
         }
       } catch (err) {

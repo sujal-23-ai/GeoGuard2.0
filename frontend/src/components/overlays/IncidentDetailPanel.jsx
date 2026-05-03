@@ -9,7 +9,7 @@ import { getOptimizedUrl } from '../../utils/helpers';
 
 /* ── Media viewer ────────────────────────────────────────── */
 function MediaGallery({ mediaMeta = [], mediaUrls = [] }) {
-  const [idx, setIdx]           = useState(0);
+  const [idx, setIdx] = useState(0);
   const [revealed, setRevealed] = useState({});
 
   // Build unified media list
