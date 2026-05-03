@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, useMotionValue, useTransform, useSpring } from 'framer-motion';
 import { Shield, Zap, Map, Users, AlertTriangle, ArrowRight, Activity, Sun, Moon } from 'lucide-react';
-import GeoGlobe from '../../components/3d/GeoGlobe';
+import { InteractiveMarketGlobe } from '../../components/globe/globe';
 import Button from '../../components/ui/Button';
 import AuthModal from './AuthModal';
 import useAppStore from '../../store/useAppStore';
@@ -12,20 +12,23 @@ import SettingsPanel from '../user/SettingsPanel';
 /* ── Animated counter ──────────────────────────────────── */
 function Counter({ end, suffix = '' }) {
   const [n, setN] = useState(0);
-  const started = useRef(false);
+  
   useEffect(() => {
-    if (started.current) return;
-    started.current = true;
+    let current = 0;
     const step = end / 90;
     const t = setInterval(() => {
-      setN((prev) => {
-        const next = prev + step;
-        if (next >= end) { clearInterval(t); return end; }
-        return Math.floor(next);
-      });
+      current += step;
+      if (current >= end) {
+        setN(end);
+        clearInterval(t);
+      } else {
+        setN(Math.floor(current));
+      }
     }, 22);
+    
     return () => clearInterval(t);
   }, [end]);
+  
   return <span>{n.toLocaleString()}{suffix}</span>;
 }
 
@@ -231,35 +234,9 @@ export default function LandingPage({ onEnterApp }) {
             <div className="relative w-full h-full max-w-[560px] flex items-center justify-center">
               {/* Glow behind globe */}
               <div className="absolute inset-1/4 rounded-full bg-blue-500/20 blur-[60px] pointer-events-none" />
-              <GeoGlobe size={480} showArcs />
-              {/* Floating incident chips */}
-              {[
-                { label: '🚗 Accident', x: '8%',  y: '28%', delay: 0.6 },
-                { label: '⚠️ Hazard',   x: '78%', y: '18%', delay: 0.9 },
-                { label: '🔥 Fire',     x: '82%', y: '68%', delay: 1.2 },
-                { label: '🚨 Alert',    x: '5%',  y: '72%', delay: 1.0 },
-              ].map(({ label, x, y, delay }) => (
-                <motion.div
-                  key={label}
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay, type: 'spring', damping: 14 }}
-                  className="absolute pointer-events-none"
-                  style={{ left: x, top: y }}
-                >
-                  <motion.div
-                    animate={{ y: [-4, 4, -4] }}
-                    transition={{ duration: 3.5 + parseFloat(delay), repeat: Infinity, ease: 'easeInOut' }}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border backdrop-blur-sm shadow-card
-                      ${isDark
-                        ? 'bg-surface/90 border-white/15 text-white/90'
-                        : 'bg-white/90 border-black/10 text-[#0F172A]/90'
-                      }`}
-                  >
-                    {label}
-                  </motion.div>
-                </motion.div>
-              ))}
+              <div className="w-[480px] h-[480px]">
+                <InteractiveMarketGlobe />
+              </div>
             </div>
           </motion.div>
         </div>
