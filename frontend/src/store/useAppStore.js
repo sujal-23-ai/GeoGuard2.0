@@ -110,6 +110,14 @@ const useAppStore = create(
       updateLiveIncident: (update) =>
         set((s) => {
           const matchId = (i) => i && ((i.id && i.id === update.id) || (i._id && i._id === update.id));
+          
+          if (update.isActive === false) {
+            return {
+              liveIncidents: s.liveIncidents.filter((i) => !matchId(i)),
+              selectedIncident: matchId(s.selectedIncident) ? null : s.selectedIncident,
+            };
+          }
+
           return {
             liveIncidents: s.liveIncidents.map((i) => (matchId(i) ? { ...i, ...update } : i)),
             // Keep selectedIncident in sync so the detail panel updates instantly
@@ -183,6 +191,7 @@ const useAppStore = create(
         filters: state.filters,
         theme: state.theme,
         emergencyContacts: state.emergencyContacts,
+        notifications: state.notifications,
       }),
     }
   )

@@ -256,6 +256,12 @@ export default function ReportPanel() {
       setUndoTimer(t);
     } catch (err) {
       console.error('Submit error:', err);
+      const msg = err.response?.data?.error || err.message || 'Failed to submit incident report. Please try again.';
+      useAppStore.getState().addNotification({
+        type: 'error',
+        title: 'Report Blocked',
+        message: msg,
+      });
     }
   };
 

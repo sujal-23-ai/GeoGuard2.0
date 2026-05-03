@@ -32,6 +32,24 @@ export const useSocket = () => {
 
     socket.on('update_incident', (update) => {
       updateLiveIncident(update);
+
+      if (update.isFake && update.authorId) {
+        // Read user lazily since the hook deps might not include it
+        const { user } = useAppStore.getState();
+        if (user && (user.id === update.authorId || user._id === update.authorId)) {
+          addNotification({
+            type: 'error',
+            title: '🚨 Fraudulent Post Detected',
+            message: 'Your recent incident report was flagged as a fake by our AI moderation system. It has been removed and your trust score was penalized.',
+          });
+        } else {
+          addNotification({
+            type: 'info',
+            title: '🛡️ Map Protected',
+            message: 'Our AI moderation system just detected and removed a fake incident report from the map.',
+          });
+        }
+      }
     });
 
     socket.on('sos_alert', () => {

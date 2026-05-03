@@ -11,10 +11,10 @@ export default function FilterPanel() {
   const hasFilters = filters.category || filters.severity || filters.since;
 
   const TIME_OPTS = [
-    { label: '1h',  ms: 3_600_000 },
-    { label: '6h',  ms: 21_600_000 },
+    { label: 'Live (6h)', ms: null },
     { label: '24h', ms: 86_400_000 },
-    { label: '7d',  ms: 604_800_000 },
+    { label: 'Last Month', ms: 2_592_000_000 },
+    { label: 'Till Date', ms: 'all' },
   ];
 
   return (

@@ -3,7 +3,7 @@ const { validate } = require('../middleware/validate');
 const Incident = require('../models/incident');
 const User = require('../models/user');
 const { cacheGet, cacheSet, cacheDelPattern } = require('../config/redis');
-const { verifyIncident } = require('../services/aiVerification.service');
+const { verifyIncident, validateIncidentText } = require('../services/aiVerification.service');
 
 const createValidation = [
   body('category').notEmpty().trim(),
@@ -78,39 +78,33 @@ const createIncident = async (req, res) => {
       return res.status(400).json({ error: 'Invalid category' });
     }
 
-    // Run AI verification in parallel with incident creation prep
-    const aiResult = await verifyIncident({
-      category,
-      description,
-      severity: parseInt(severity),
-      mediaUrls: mediaUrls || [],
-      timestamp: new Date(),
-      location: { lng: parseFloat(lng), lat: parseFloat(lat) },
-    }).catch(() => null);
+    // Synchronous text validation to block gibberish and spam immediately
+    const textValidation = await validateIncidentText(category, title, description);
+    if (textValidation && textValidation.is_spam) {
+      return res.status(400).json({ error: textValidation.reason || 'Your report contains gibberish or spam.' });
+    }
 
     // Thumbnail from first media item
     const firstMedia = Array.isArray(mediaMeta) ? mediaMeta[0] : null;
     const thumbnail = firstMedia?.thumbnail || (mediaUrls?.[0] ? mediaUrls[0] : undefined);
 
+    // Initial creation: fast and optimistic
     const incident = await Incident.create({
       userId: req.user?._id || null,
       category, subcategory, title, description,
       severity: parseInt(severity),
       location: { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] },
       address, city, country,
-      tags: aiResult?.ai_tags || simulateAITags(category, description),
+      tags: simulateAITags(category, description),
       mediaUrls: mediaUrls || [],
       mediaMeta: mediaMeta || [],
       thumbnail,
-      aiConfidence: aiResult?.confidence_score ?? null,
-      aiTags: aiResult?.ai_tags || [],
-      riskScore: aiResult?.risk_score ?? null,
-      riskLevel: aiResult?.risk_level || 'low',
-      isSensitive: aiResult?.is_sensitive || false,
+      isFake: false,
+      isActive: true,
     });
 
     if (req.user) {
-      await User.addPoints(req.user._id, 10);
+      await User.addPoints(req.user._id, 10); // Reward optimistically
     }
 
     await cacheDelPattern('incidents:nearby:*');
@@ -120,6 +114,58 @@ const createIncident = async (req, res) => {
 
     req.io?.emit('new_incident', plain);
     res.status(201).json({ incident: plain });
+
+    // Background asynchronous AI verification
+    (async () => {
+      try {
+        const aiResult = await verifyIncident({
+          category,
+          description,
+          severity: parseInt(severity),
+          mediaUrls: mediaUrls || [],
+          timestamp: new Date(),
+          location: { lng: parseFloat(lng), lat: parseFloat(lat) },
+        }).catch(() => null);
+
+        if (!aiResult) return;
+
+        if (aiResult.is_fake) {
+          // It was a fake! Revert and penalize.
+          await Incident.findByIdAndUpdate(incident._id, { isFake: true, isActive: false });
+          
+          if (req.user) {
+            // Deduct the optimistic +10 points AND slap a -20 point penalty
+            await User.penalizeTrust(req.user._id, 20);
+            await User.addPoints(req.user._id, -10);
+          }
+          
+          await cacheDelPattern('incidents:nearby:*');
+          // Tell active clients to ghost the incident off their maps
+          req.io?.emit('update_incident', { 
+            id: incident._id, 
+            isActive: false, 
+            isFake: true, 
+            authorId: req.user ? req.user._id : null 
+          });
+        } else {
+          // It's genuine! Update with rich AI data.
+          await Incident.findByIdAndUpdate(incident._id, {
+            aiConfidence: aiResult.confidence_score,
+            aiTags: aiResult.ai_tags,
+            riskScore: aiResult.risk_score,
+            riskLevel: aiResult.risk_level,
+            isSensitive: aiResult.is_sensitive,
+          });
+          req.io?.emit('update_incident', { 
+            id: incident._id, 
+            aiTags: aiResult.ai_tags, 
+            riskLevel: aiResult.risk_level 
+          });
+        }
+      } catch (err) {
+        console.error('Background AI Verification Error:', err);
+      }
+    })();
   } catch (err) {
     console.error('Create incident error:', err);
     res.status(500).json({ error: 'Failed to create incident' });
