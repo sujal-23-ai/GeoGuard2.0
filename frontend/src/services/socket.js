@@ -1,7 +1,11 @@
-import { io } from 'socket.io-client';
-import useAppStore from '../store/useAppStore';
+import { io } from "socket.io-client";
+import useAppStore from "../store/useAppStore";
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+// In computer networking, a socket represents an endpoint for communication
+// between two machines on a network. Here, Socket.IO creates a persistent
+// client-server connection so the frontend can receive live updates and events
+// from the backend in real time.
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 
 let socket = null;
 
@@ -12,7 +16,7 @@ export const initSocket = () => {
 
   socket = io(SOCKET_URL, {
     auth: { token },
-    transports: ['websocket', 'polling'],
+    transports: ["websocket", "polling"],
     reconnectionAttempts: 10,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 10000,
@@ -20,45 +24,45 @@ export const initSocket = () => {
 
   const store = useAppStore.getState();
 
-  socket.on('connect', () => {
+  socket.on("connect", () => {
     store.setSocketConnected(true);
-    console.log('Socket connected:', socket.id);
+    console.log("Socket connected:", socket.id);
   });
 
-  socket.on('disconnect', () => {
+  socket.on("disconnect", () => {
     store.setSocketConnected(false);
   });
 
-  socket.on('new_incident', (incident) => {
+  socket.on("new_incident", (incident) => {
     store.addLiveIncident(incident);
     store.addNotification({
-      type: 'incident',
-      title: 'New Incident',
+      type: "incident",
+      title: "New Incident",
       message: `${incident.category}: ${incident.title}`,
       severity: incident.severity,
     });
   });
 
-  socket.on('update_incident', (update) => {
+  socket.on("update_incident", (update) => {
     store.updateLiveIncident(update);
   });
 
-  socket.on('sos_alert', (alert) => {
+  socket.on("sos_alert", (alert) => {
     store.addNotification({
-      type: 'sos',
-      title: '🚨 SOS Alert',
+      type: "sos",
+      title: "🚨 SOS Alert",
       message: `${alert.userName} needs help!`,
       severity: 5,
       data: alert,
     });
   });
 
-  socket.on('user_count', (count) => {
+  socket.on("user_count", (count) => {
     store.setConnectedUsers(count);
   });
 
-  socket.on('connect_error', (err) => {
-    console.warn('Socket connection error:', err.message);
+  socket.on("connect_error", (err) => {
+    console.warn("Socket connection error:", err.message);
   });
 
   return socket;
@@ -67,11 +71,11 @@ export const initSocket = () => {
 export const getSocket = () => socket;
 
 export const joinArea = (lng, lat, radius = 10) => {
-  socket?.emit('join_area', { lng, lat, radius });
+  socket?.emit("join_area", { lng, lat, radius });
 };
 
 export const updateLocation = (lng, lat) => {
-  socket?.emit('update_location', { lng, lat });
+  socket?.emit("update_location", { lng, lat });
 };
 
 export const disconnectSocket = () => {
@@ -79,4 +83,10 @@ export const disconnectSocket = () => {
   socket = null;
 };
 
-export default { initSocket, getSocket, joinArea, updateLocation, disconnectSocket };
+export default {
+  initSocket,
+  getSocket,
+  joinArea,
+  updateLocation,
+  disconnectSocket,
+};
