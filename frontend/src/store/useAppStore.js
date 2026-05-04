@@ -192,7 +192,6 @@ const useAppStore = create(
         filters: state.filters,
         theme: state.theme,
         emergencyContacts: state.emergencyContacts,
-        notifications: state.notifications,
       }),
     }
   )
