@@ -17,15 +17,47 @@ const loginValidation = [
   validate,
 ];
 
+const sendVerification = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email required' });
+    
+    const existing = await User.findOne({ email });
+    if (existing) return res.status(409).json({ error: 'Email already registered' });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const { cacheSet } = require('../config/redis');
+    await cacheSet(`otp:${email}`, otp, 600); // 10 minutes
+
+    const { sendVerificationEmail } = require('../services/email.service');
+    await sendVerificationEmail(email, otp);
+
+    res.json({ message: 'Verification email sent' });
+  } catch (err) {
+    console.error('Send verification error:', err);
+    res.status(500).json({ error: 'Failed to send verification email' });
+  }
+};
+
 const register = async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, otp } = req.body;
+
+    if (!otp) return res.status(400).json({ error: 'Verification code (OTP) is required' });
+
+    const { cacheGet, cacheDel } = require('../config/redis');
+    const cachedOtp = await cacheGet(`otp:${email}`);
+    if (!cachedOtp || cachedOtp !== otp) {
+      return res.status(400).json({ error: 'Invalid or expired verification code' });
+    }
 
     const existing = await User.findOne({ email });
     if (existing) return res.status(409).json({ error: 'Email already registered' });
 
     const user = await User.createUser({ email, password, name });
     const token = generateToken(user._id);
+
+    await cacheDel(`otp:${email}`);
 
     // Send welcome email asynchronously
     sendWelcomeEmail(user.email, user.name).catch(console.error);
@@ -84,4 +116,4 @@ const googleCallback = (req, res) => {
   res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
 };
 
-module.exports = { register, login, me, googleCallback, registerValidation, loginValidation };
+module.exports = { register, login, me, googleCallback, registerValidation, loginValidation, sendVerification };

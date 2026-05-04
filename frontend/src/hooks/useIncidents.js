@@ -93,3 +93,21 @@ export const useAnalytics = (days = 7) =>
     queryFn: () => incidentsApi.getAnalytics({ days }),
     staleTime: 1000 * 60 * 5,
   });
+
+export const useDeleteIncident = () => {
+  const queryClient = useQueryClient();
+  const setSelectedIncident = useAppStore((s) => s.setSelectedIncident);
+  const addNotification = useAppStore((s) => s.addNotification);
+
+  return useMutation({
+    mutationFn: incidentsApi.delete,
+    onSuccess: () => {
+      setSelectedIncident(null);
+      queryClient.invalidateQueries({ queryKey: ['incidents'] });
+      addNotification({ type: 'success', title: 'Deleted', message: 'Your report has been deleted.' });
+    },
+    onError: (err) => {
+      addNotification({ type: 'error', title: 'Delete Failed', message: err.response?.data?.error || err.message });
+    }
+  });
+};

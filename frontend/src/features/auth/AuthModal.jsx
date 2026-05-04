@@ -7,6 +7,8 @@ import useAppStore from '../../store/useAppStore';
 
 export default function AuthModal({ open, onClose }) {
   const [mode, setMode] = useState('login');
+  const [step, setStep] = useState('form'); // 'form' | 'otp'
+  const [otp, setOtp] = useState('');
   const [form, setForm] = useState({ email: '', password: '', name: '' });
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
@@ -18,13 +20,24 @@ export default function AuthModal({ open, onClose }) {
     setError('');
     setLoading(true);
     try {
-      const data = mode === 'login'
-        ? await authApi.login({ email: form.email, password: form.password })
-        : await authApi.register(form);
-      setAuth(data.user, data.token);
-      onClose();
+      if (mode === 'login') {
+        const data = await authApi.login({ email: form.email, password: form.password });
+        setAuth(data.user, data.token);
+        onClose();
+      } else {
+        if (step === 'form') {
+          // Request OTP
+          await authApi.sendVerification({ email: form.email });
+          setStep('otp');
+        } else {
+          // Submit OTP and Register
+          const data = await authApi.register({ ...form, otp });
+          setAuth(data.user, data.token);
+          onClose();
+        }
+      }
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
     }
@@ -81,7 +94,7 @@ export default function AuthModal({ open, onClose }) {
                     <button
                       key={m}
                       type="button"
-                      onClick={() => { setMode(m); setError(''); }}
+                      onClick={() => { setMode(m); setStep('form'); setOtp(''); setError(''); }}
                       className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200
                         ${mode === m ? 'bg-primary text-white shadow-glow-blue' : 'text-white/50 hover:text-white/80'}`}
                     >
@@ -92,32 +105,62 @@ export default function AuthModal({ open, onClose }) {
               </div>
 
               <form onSubmit={handleSubmit} className="p-6 pt-0 space-y-3">
-                {mode === 'register' && (
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                    <input value={form.name} onChange={update('name')} placeholder="Full Name" required
-                      className="input-glass pl-10 text-sm" />
+                {mode === 'register' && step === 'otp' ? (
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <p className="text-sm text-white/70">
+                        We sent a 6-digit code to <span className="font-semibold text-white">{form.email}</span>.
+                      </p>
+                    </div>
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        value={otp} 
+                        onChange={(e) => setOtp(e.target.value)} 
+                        placeholder="Enter 6-digit OTP" 
+                        required
+                        maxLength={6}
+                        className="input-glass text-center tracking-[0.5em] text-lg font-bold w-full" 
+                      />
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => setStep('form')}
+                      className="text-xs text-primary hover:text-primary/80 w-full text-center"
+                    >
+                      Change email or edit details
+                    </button>
                   </div>
+                ) : (
+                  <>
+                    {mode === 'register' && (
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        <input value={form.name} onChange={update('name')} placeholder="Full Name" required
+                          className="input-glass pl-10 text-sm" />
+                      </div>
+                    )}
+
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                      <input type="email" value={form.email} onChange={update('email')} placeholder="Email" required
+                        className="input-glass pl-10 text-sm" />
+                    </div>
+
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                      <input
+                        type={showPass ? 'text' : 'password'}
+                        value={form.password} onChange={update('password')} placeholder="Password" required
+                        className="input-glass pl-10 pr-10 text-sm"
+                      />
+                      <button type="button" onClick={() => setShowPass(!showPass)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
+                        {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </>
                 )}
-
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                  <input type="email" value={form.email} onChange={update('email')} placeholder="Email" required
-                    className="input-glass pl-10 text-sm" />
-                </div>
-
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                  <input
-                    type={showPass ? 'text' : 'password'}
-                    value={form.password} onChange={update('password')} placeholder="Password" required
-                    className="input-glass pl-10 pr-10 text-sm"
-                  />
-                  <button type="button" onClick={() => setShowPass(!showPass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
-                    {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
 
                 {error && (
                   <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -127,7 +170,7 @@ export default function AuthModal({ open, onClose }) {
                 )}
 
                 <Button type="submit" loading={loading} className="w-full mt-4" size="lg">
-                  {mode === 'login' ? 'Sign In' : 'Create Account'}
+                  {mode === 'login' ? 'Sign In' : (step === 'otp' ? 'Verify & Register' : 'Continue')}
                 </Button>
 
                 <div className="relative flex items-center gap-3 my-2">

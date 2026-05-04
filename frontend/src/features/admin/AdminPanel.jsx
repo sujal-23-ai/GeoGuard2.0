@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Shield, Users, AlertTriangle, CheckCircle, XCircle, Eye, EyeOff, ChevronRight, Activity, Search, Trash2, Edit3, BellRing } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
+import { getSocket } from '../../services/socket';
 import useAppStore from '../../store/useAppStore';
 import { getCategory, timeAgo } from '../../utils/helpers';
 import { SeverityBadge } from '../../components/ui/Badge';
@@ -36,7 +37,7 @@ function StatCard({ label, value, icon: Icon, color }) {
   );
 }
 
-function IncidentRow({ incident, onVerify, onToggle, onDelete, verifyLoading, toggleLoading, deleteLoading }) {
+function IncidentRow({ incident, onVerify, onToggle, onDelete, verifyLoading, toggleLoading, deleteLoading, isAdmin }) {
   const cat = getCategory(incident.category);
   return (
     <div className="flex items-start gap-3 p-3 rounded-xl bg-white/3 border border-white/8 hover:bg-white/6 transition-all group">
@@ -79,19 +80,21 @@ function IncidentRow({ incident, onVerify, onToggle, onDelete, verifyLoading, to
         >
           {incident.isActive ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
         </motion.button>
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={() => {
-            if(window.confirm('Are you sure you want to permanently delete this incident?')) {
-              onDelete(incident._id);
-            }
-          }}
-          disabled={deleteLoading}
-          title="Delete Incident"
-          className="w-7 h-7 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 flex items-center justify-center hover:bg-red-500/25 transition-all disabled:opacity-50"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </motion.button>
+        {isAdmin && (
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => {
+              if(window.confirm('Are you sure you want to permanently delete this incident?')) {
+                onDelete(incident._id);
+              }
+            }}
+            disabled={deleteLoading}
+            title="Delete Incident"
+            className="w-7 h-7 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 flex items-center justify-center hover:bg-red-500/25 transition-all disabled:opacity-50"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </motion.button>
+        )}
       </div>
     </div>
   );
@@ -237,6 +240,30 @@ export default function AdminPanel({ open, onClose }) {
   const [sosPage, setSosPage] = useState(1);
   const qc = useQueryClient();
 
+  // Listen to socket events for real-time updates across the admin panel
+  useEffect(() => {
+    if (!open) return;
+    const socket = getSocket();
+    if (!socket) return;
+
+    const handleUpdate = () => {
+      // Invalidate all admin queries so the current tab and stats refetch
+      qc.invalidateQueries({ queryKey: ['admin'] });
+    };
+
+    socket.on('new_incident', handleUpdate);
+    socket.on('update_incident', handleUpdate);
+    socket.on('sos_alert', handleUpdate);
+    socket.on('user_count', handleUpdate);
+
+    return () => {
+      socket.off('new_incident', handleUpdate);
+      socket.off('update_incident', handleUpdate);
+      socket.off('sos_alert', handleUpdate);
+      socket.off('user_count', handleUpdate);
+    };
+  }, [open, qc]);
+
   const { data: stats } = useQuery({
     queryKey: ['admin', 'stats'],
     queryFn: adminApi.getStats,
@@ -266,6 +293,7 @@ export default function AdminPanel({ open, onClose }) {
     mutationFn: adminApi.verifyIncident,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'incidents'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'stats'] });
       addNotification({ type: 'success', title: 'Verified', message: 'Incident has been verified.' });
     },
     onError: (err) => {
@@ -277,6 +305,7 @@ export default function AdminPanel({ open, onClose }) {
     mutationFn: adminApi.toggleIncident,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'incidents'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'stats'] });
       addNotification({ type: 'success', title: 'Updated', message: 'Incident visibility toggled.' });
     },
     onError: (err) => {
@@ -344,7 +373,7 @@ export default function AdminPanel({ open, onClose }) {
   const TABS = [
     { id: 'overview', label: 'Overview', icon: Activity },
     { id: 'incidents', label: 'Incidents', icon: AlertTriangle },
-    { id: 'users', label: 'Users', icon: Users },
+    ...(user?.role === 'admin' ? [{ id: 'users', label: 'Users', icon: Users }] : []),
     { id: 'sos', label: 'SOS Alerts', icon: BellRing },
   ];
 
@@ -432,21 +461,23 @@ export default function AdminPanel({ open, onClose }) {
                         <ChevronRight className="w-4 h-4 text-white/30" />
                       </button>
 
-                      <button
-                        onClick={() => setActiveTab('users')}
-                        className="flex items-center justify-between p-4 bg-white/4 border border-white/8 rounded-2xl hover:bg-white/7 hover:border-white/15 transition-all text-left"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center">
-                            <Users className="w-5 h-5 text-blue-400" />
+                      {user?.role === 'admin' && (
+                        <button
+                          onClick={() => setActiveTab('users')}
+                          className="flex items-center justify-between p-4 bg-white/4 border border-white/8 rounded-2xl hover:bg-white/7 hover:border-white/15 transition-all text-left"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center">
+                              <Users className="w-5 h-5 text-blue-400" />
+                            </div>
+                            <div>
+                              <p className="text-white font-semibold text-sm">Manage Users</p>
+                              <p className="text-white/40 text-xs">Roles, bans, and trust scores</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-white font-semibold text-sm">Manage Users</p>
-                            <p className="text-white/40 text-xs">Roles, bans, and trust scores</p>
-                          </div>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-white/30" />
-                      </button>
+                          <ChevronRight className="w-4 h-4 text-white/30" />
+                        </button>
+                      )}
                       
                       <button
                         onClick={() => setActiveTab('sos')}
@@ -487,6 +518,7 @@ export default function AdminPanel({ open, onClose }) {
                             verifyLoading={verifyMutation.isPending}
                             toggleLoading={toggleIncidentMutation.isPending}
                             deleteLoading={deleteIncidentMutation.isPending}
+                            isAdmin={user?.role === 'admin'}
                           />
                         ))}
                         </div>
