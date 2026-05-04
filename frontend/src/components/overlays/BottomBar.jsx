@@ -92,33 +92,43 @@ export default function BottomBar() {
                 setSosActive(newState);
                 if (newState) {
                   try {
-                    const { user, userLocation, emergencyContacts } = useAppStore.getState();
-                    if (!user || !userLocation) {
-                      console.error("User or location not available for SOS");
-                      setSosActive(false); // Revert state
+                    const { user, userLocation, emergencyContacts, addNotification } = useAppStore.getState();
+
+                    if (!user) {
+                      addNotification({ type: 'error', title: 'SOS Failed', message: 'You must be logged in to send SOS.' });
+                      setSosActive(false);
                       return;
                     }
 
-                    if (!emergencyContacts || emergencyContacts.length === 0) {
-                      console.error("No emergency contacts configured for the user.");
-                      // TODO: Add a user-facing toast notification
-                      setSosActive(false); // Revert state
+                    if (!userLocation) {
+                      addNotification({ type: 'error', title: 'SOS Failed', message: 'Location not available. Please enable GPS.' });
+                      setSosActive(false);
                       return;
                     }
+
+                    const contacts = (emergencyContacts || []).map(c => typeof c === 'string' ? c : c.phone).filter(Boolean);
 
                     const sosData = {
                       username: user.name || 'Unknown User',
                       latitude: userLocation.lat,
                       longitude: userLocation.lng,
-                      emergency_contacts: emergencyContacts.map(c => typeof c === 'string' ? c : c.phone) || [],
+                      lat: userLocation.lat,
+                      lng: userLocation.lng,
+                      name: user.name || 'Unknown User',
+                      emergency_contacts: contacts,
                     };
 
                     await usersApi.sendSOS(sosData);
-                    // TODO: Add toast notification for success
+
+                    addNotification({ type: 'sos', title: '🚨 SOS Sent!', message: 'Emergency alert dispatched successfully.' });
+
+                    if (contacts.length === 0) {
+                      addNotification({ type: 'info', title: 'No Emergency Contacts', message: 'Add contacts in your Profile to enable SMS & call alerts.' });
+                    }
                   } catch (error) {
                     console.error("Failed to send SOS:", error);
-                    // TODO: Add toast notification for error
-                    setSosActive(false); // Revert state on failure
+                    useAppStore.getState().addNotification({ type: 'error', title: 'SOS Failed', message: 'Could not send SOS. Please try again.' });
+                    setSosActive(false);
                   }
                 }
               }}

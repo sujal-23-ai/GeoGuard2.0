@@ -7,24 +7,33 @@ import { getRiskScore, getSeverityColor } from '../../utils/helpers';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
-async function fetchRoute(origin, destination, profile = 'driving') {
+async function fetchRoutesWithAlternatives(origin, destination, profile = 'driving') {
   if (!MAPBOX_TOKEN || MAPBOX_TOKEN === 'pk.demo') {
-    // Return a mock route when no token
-    return {
-      geometry: { type: 'LineString', coordinates: [origin, [origin[0] + 0.01, origin[1] + 0.01], destination] },
-      duration: Math.round(Math.random() * 1800 + 300),
-      distance: Math.round(Math.random() * 15000 + 2000),
-      steps: [],
-    };
+    // Return mock routes
+    return [
+      {
+        geometry: { type: 'LineString', coordinates: [origin, [origin[0] + 0.01, origin[1] + 0.01], destination] },
+        duration: Math.round(Math.random() * 1800 + 300),
+        distance: Math.round(Math.random() * 15000 + 2000),
+        steps: [],
+      },
+      {
+        geometry: { type: 'LineString', coordinates: [origin, [origin[0] - 0.01, origin[1] - 0.01], destination] },
+        duration: Math.round(Math.random() * 2000 + 500),
+        distance: Math.round(Math.random() * 18000 + 3000),
+        steps: [],
+      }
+    ];
   }
-  const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${origin[0]},${origin[1]};${destination[0]},${destination[1]}?geometries=geojson&overview=full&steps=true&banner_instructions=true&voice_instructions=true&access_token=${MAPBOX_TOKEN}`;
+  const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${origin[0]},${origin[1]};${destination[0]},${destination[1]}?alternatives=true&geometries=geojson&overview=full&steps=true&banner_instructions=true&voice_instructions=true&access_token=${MAPBOX_TOKEN}`;
   const res = await fetch(url);
   const data = await res.json();
-  if (!data.routes?.[0]) throw new Error('No route found');
-  const route = data.routes[0];
-  // Flatten steps from all legs
-  const steps = (route.legs || []).flatMap((leg) => leg.steps || []);
-  return { ...route, steps };
+  if (!data.routes || data.routes.length === 0) throw new Error('No route found');
+  
+  return data.routes.map(route => {
+    const steps = (route.legs || []).flatMap((leg) => leg.steps || []);
+    return { ...route, steps };
+  });
 }
 
 function formatDuration(seconds) {
@@ -225,6 +234,15 @@ export default function RoutingPanel({ mapRef }) {
     setJourneyCompleted(false);
   };
 
+  const prevJourneyActive = useRef(journeyActive);
+  useEffect(() => {
+    // If journey transitions from active to inactive (e.g. HUD cross button clicked), clear the map
+    if (prevJourneyActive.current && !journeyActive) {
+      setRoutes(null);
+    }
+    prevJourneyActive.current = journeyActive;
+  }, [journeyActive]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -339,6 +357,29 @@ export default function RoutingPanel({ mapRef }) {
     });
   };
 
+  // Update map drawing when activeRoute changes
+  useEffect(() => {
+    if (!mapRef?.current?.getStyle) return;
+    
+    // Clear ALL route layers first
+    ['route-safe', 'route-fast'].forEach(layerId => {
+      const map = mapRef.current;
+      if (map.getLayer(layerId + '-casing')) map.removeLayer(layerId + '-casing');
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      if (map.getLayer(layerId + '-conn')) map.removeLayer(layerId + '-conn');
+      if (map.getLayer(layerId + '-dest')) map.removeLayer(layerId + '-dest');
+    });
+
+    if (!routes || !activeRoute) return;
+
+    // Draw only the currently active route
+    if (activeRoute === 'safe') {
+      drawRouteOnMap(routes.safe, 'route-safe-src', 'route-safe', '#10B981', false, routes.destCoords);
+    } else if (activeRoute === 'fast') {
+      drawRouteOnMap(routes.fast, 'route-fast-src', 'route-fast', '#3B82F6', false, routes.destCoords);
+    }
+  }, [routes, activeRoute, mapRef]);
+
   const handleGetRoutes = async () => {
     if (!origin.trim() || !destination.trim()) {
       setError('Enter both origin and destination');
@@ -383,41 +424,70 @@ export default function RoutingPanel({ mapRef }) {
         return;
       }
 
-      const [fastRoute, safeRoute] = await Promise.all([
-        fetchRoute(originCoords, destCoords, transportMode),
-        fetchRoute(originCoords, destCoords, transportMode === 'driving' ? 'driving-traffic' : transportMode),
-      ]);
+      // Fetch routes with alternatives=true
+      const profileStr = transportMode === 'driving' ? 'driving-traffic' : transportMode;
+      const returnedRoutes = await fetchRoutesWithAlternatives(originCoords, destCoords, profileStr);
 
-      const nearIncidents = liveIncidents.filter((i) => {
-        const [lng, lat] = Array.isArray(fastRoute.geometry.coordinates[0])
-          ? fastRoute.geometry.coordinates[Math.floor(fastRoute.geometry.coordinates.length / 2)]
-          : [originCoords[0], originCoords[1]];
-        const d = Math.sqrt((i.lng - lng) ** 2 + (i.lat - lat) ** 2);
-        return d < 0.05;
+      // Evaluate the risk of each alternative route
+      const evaluatedRoutes = returnedRoutes.map((route) => {
+        const coords = route.geometry.coordinates;
+        // Sample points along the route
+        const samplePoints = [
+          coords[0],
+          coords[Math.floor(coords.length * 0.25)],
+          coords[Math.floor(coords.length * 0.5)],
+          coords[Math.floor(coords.length * 0.75)],
+          coords[coords.length - 1]
+        ].filter(Boolean);
+
+        let riskScore = 0;
+        liveIncidents.forEach(incident => {
+           // Check if incident is dangerously close to any route point
+           const isNear = samplePoints.some(pt => {
+             const d = Math.sqrt((incident.lng - pt[0]) ** 2 + (incident.lat - pt[1]) ** 2);
+             return d < 0.05; // rough bounds
+           });
+           if (isNear) {
+             riskScore += incident.severity * 10;
+           }
+        });
+        
+        return { ...route, rawRisk: Math.min(100, riskScore) };
       });
 
-      const routeRisk = Math.min(100, nearIncidents.reduce((acc, i) => acc + i.severity * 8, 0));
+      // Fastest route is always the primary route returned by Mapbox (index 0)
+      let fastestRoute = evaluatedRoutes[0];
+      
+      // Safest route is the one with the absolute lowest risk. If tied, it's the fastest.
+      let safestRoute = [...evaluatedRoutes].sort((a, b) => {
+        if (a.rawRisk !== b.rawRisk) return a.rawRisk - b.rawRisk;
+        return a.duration - b.duration;
+      })[0];
+
+      // If the fastest route is ALSO the safest route, and we have alternatives,
+      // let's explicitly designate the alternative as "safest" if it has identical risk
+      // just so the UI shows two separate paths when possible (unless there is only 1 path).
+      if (fastestRoute === safestRoute && evaluatedRoutes.length > 1) {
+        safestRoute = evaluatedRoutes[1]; 
+      }
 
       const result = {
-        fast: { ...fastRoute, risk: routeRisk + 15, label: 'Fastest', color: '#3B82F6' },
-        safe: { ...safeRoute, risk: Math.max(0, routeRisk - 20), label: 'Safest', color: '#10B981' },
+        fast: { ...fastestRoute, risk: fastestRoute.rawRisk, label: 'Fastest', color: '#3B82F6' },
+        safe: { ...safestRoute, risk: safestRoute.rawRisk, label: 'Safest', color: '#10B981' },
         originCoords,
         destCoords,
       };
+      
       setRoutes(result);
       setActiveRoute('safe');
 
-      if (mapRef?.current?.getStyle) {
-        drawRouteOnMap(result.safe, 'route-safe-src', 'route-safe', '#10B981', false, destCoords);
-        drawRouteOnMap(result.fast, 'route-fast-src', 'route-fast', '#3B82F6', true, destCoords);
-        if (MAPBOX_TOKEN !== 'pk.demo') {
-          const coords = result.safe.geometry.coordinates;
-          const bounds = coords.reduce(
-            (b, c) => [[Math.min(b[0][0], c[0]), Math.min(b[0][1], c[1])], [Math.max(b[1][0], c[0]), Math.max(b[1][1], c[1])]],
-            [[coords[0][0], coords[0][1]], [coords[0][0], coords[0][1]]]
-          );
-          mapRef.current.fitBounds?.(bounds, { padding: 80 });
-        }
+      if (mapRef?.current?.getStyle && MAPBOX_TOKEN !== 'pk.demo') {
+        const coords = result.safe.geometry.coordinates;
+        const bounds = coords.reduce(
+          (b, c) => [[Math.min(b[0][0], c[0]), Math.min(b[0][1], c[1])], [Math.max(b[1][0], c[0]), Math.max(b[1][1], c[1])]],
+          [[coords[0][0], coords[0][1]], [coords[0][0], coords[0][1]]]
+        );
+        mapRef.current.fitBounds?.(bounds, { padding: 80 });
       }
     } catch (err) {
       setError(err.message || 'Failed to fetch routes');

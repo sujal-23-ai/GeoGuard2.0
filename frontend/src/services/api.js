@@ -29,6 +29,7 @@ api.interceptors.response.use(
 
 // Auth
 export const authApi = {
+  sendVerification: (data) => api.post('/auth/send-verification', data),
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
   me: () => api.get('/auth/me'),
@@ -57,11 +58,14 @@ export const usersApi = {
     // 1. Existing backend API logic
     const backendRes = await api.post('/users/sos', data);
     
-    // 2. Triggering FastAPI Calling Agent API
-    try {
-      await callingAgentApi.post('/sos_call', data);
-    } catch (err) {
-      console.error('Failed to trigger voice call agent:', err);
+    // 2. Triggering FastAPI Calling Agent API (only if contacts exist)
+    const contacts = data.emergency_contacts || [];
+    if (contacts.length > 0) {
+      try {
+        await callingAgentApi.post('/sos_call', data);
+      } catch (err) {
+        console.error('Failed to trigger voice call agent:', err);
+      }
     }
     
     return backendRes;

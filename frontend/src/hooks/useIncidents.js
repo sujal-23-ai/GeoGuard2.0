@@ -18,7 +18,7 @@ export const useNearbyIncidents = () => {
           radius: filters.radius,
           ...(filters.category && { category: filters.category }),
           ...(filters.severity && { severity: filters.severity }),
-          ...(filters.since && { since: new Date(Date.now() - filters.since).toISOString() }),
+          ...(filters.since && { since: filters.since === 'all' ? 'all' : new Date(Date.now() - filters.since).toISOString() }),
         });
         const incidents = result.incidents || [];
         setLiveIncidents(incidents);
@@ -93,3 +93,21 @@ export const useAnalytics = (days = 7) =>
     queryFn: () => incidentsApi.getAnalytics({ days }),
     staleTime: 1000 * 60 * 5,
   });
+
+export const useDeleteIncident = () => {
+  const queryClient = useQueryClient();
+  const setSelectedIncident = useAppStore((s) => s.setSelectedIncident);
+  const addNotification = useAppStore((s) => s.addNotification);
+
+  return useMutation({
+    mutationFn: incidentsApi.delete,
+    onSuccess: () => {
+      setSelectedIncident(null);
+      queryClient.invalidateQueries({ queryKey: ['incidents'] });
+      addNotification({ type: 'success', title: 'Deleted', message: 'Your report has been deleted.' });
+    },
+    onError: (err) => {
+      addNotification({ type: 'error', title: 'Delete Failed', message: err.response?.data?.error || err.message });
+    }
+  });
+};
