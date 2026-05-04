@@ -39,6 +39,8 @@ const incidentSchema = new mongoose.Schema(
     confirmedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     isVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true, index: true },
+    isFake: { type: Boolean, default: false },
+    activeUntil: { type: Date, default: () => new Date(Date.now() + 6 * 60 * 60 * 1000), index: true },
     expiresAt: { type: Date, default: () => new Date(Date.now() + 72 * 60 * 60 * 1000) },
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
@@ -75,7 +77,13 @@ incidentSchema.statics.findNearby = async function ({ lng, lat, radiusKm = 10, c
 
   if (category) filter.category = category;
   if (severity) filter.severity = { $gte: severity };
-  if (since) filter.createdAt = { $gte: new Date(since) };
+  
+  if (since) {
+    if (since !== 'all') filter.createdAt = { $gte: new Date(since) };
+  } else {
+    // Default live feed logic: only show incidents still marked as active
+    filter.activeUntil = { $gte: new Date() };
+  }
 
   return this.find(filter)
     .limit(limit)
@@ -132,6 +140,8 @@ incidentSchema.statics.confirm = async function (incidentId, userId) {
 
   incident.confirmedBy.push(userId);
   incident.confirmCount = incident.confirmedBy.length;
+  // Increase active time by 2 hours if confirmed
+  incident.activeUntil = new Date(Math.max(incident.activeUntil.getTime(), Date.now()) + 2 * 60 * 60 * 1000);
   await incident.save();
   return { confirmCount: incident.confirmCount, alreadyConfirmed: false };
 };

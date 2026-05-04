@@ -18,7 +18,7 @@ export const useNearbyIncidents = () => {
           radius: filters.radius,
           ...(filters.category && { category: filters.category }),
           ...(filters.severity && { severity: filters.severity }),
-          ...(filters.since && { since: new Date(Date.now() - filters.since).toISOString() }),
+          ...(filters.since && { since: filters.since === 'all' ? 'all' : new Date(Date.now() - filters.since).toISOString() }),
         });
         const incidents = result.incidents || [];
         setLiveIncidents(incidents);
