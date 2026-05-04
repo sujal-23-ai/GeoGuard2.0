@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, AlertTriangle, Info, CheckCircle, Zap } from 'lucide-react';
 import useAppStore from '../../store/useAppStore';
@@ -19,14 +19,13 @@ const colors = {
   error: 'border-red-500/40 bg-red-500/10',
 };
 
-function ToastItem({ notification }) {
-  const dismiss = useAppStore((s) => s.dismissNotification);
+function ToastItem({ notification, onHide }) {
   const Icon = icons[notification.type] || Info;
 
   useEffect(() => {
-    const timer = setTimeout(() => dismiss(notification.id), notification.type === 'sos' ? 8000 : 5000);
+    const timer = setTimeout(() => onHide(notification.id), notification.type === 'sos' ? 8000 : 5000);
     return () => clearTimeout(timer);
-  }, [notification.id, dismiss, notification.type]);
+  }, [notification.id, onHide, notification.type]);
 
   return (
     <motion.div
@@ -43,7 +42,7 @@ function ToastItem({ notification }) {
         <p className="text-white font-semibold text-sm">{notification.title}</p>
         <p className="text-white/60 text-xs mt-0.5 truncate">{notification.message}</p>
       </div>
-      <button onClick={() => dismiss(notification.id)} className="text-white/40 hover:text-white/70 flex-shrink-0">
+      <button onClick={() => onHide(notification.id)} className="text-white/40 hover:text-white/70 flex-shrink-0">
         <X className="w-4 h-4" />
       </button>
     </motion.div>
@@ -52,13 +51,20 @@ function ToastItem({ notification }) {
 
 export default function ToastContainer() {
   const notifications = useAppStore((s) => s.notifications);
+  const [hiddenIds, setHiddenIds] = useState(new Set());
+
+  const activeToasts = notifications.filter(n => !hiddenIds.has(n.id));
+
+  const handleHide = (id) => {
+    setHiddenIds(prev => new Set(prev).add(id));
+  };
 
   return (
     <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none">
       <AnimatePresence mode="sync">
-        {notifications.map((n) => (
+        {activeToasts.map((n) => (
           <div key={n.id} className="pointer-events-auto">
-            <ToastItem notification={n} />
+            <ToastItem notification={n} onHide={handleHide} />
           </div>
         ))}
       </AnimatePresence>

@@ -188,7 +188,7 @@ export default function NewsPanel({ open, onClose }) {
 
                 {!isLoading && filtered.length === 0 && (
                   <div className="text-center py-8 text-white/40 text-sm">
-                    No {activeTab.toLowerCase()} news found.
+                    No {activeTab.toLowerCase() === 'all' ? '' : `${activeTab.toLowerCase()} `}news found.
                   </div>
                 )}
 

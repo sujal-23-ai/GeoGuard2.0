@@ -149,4 +149,62 @@ const sendLoginEmail = async (toEmail, name) => {
   }
 };
 
-module.exports = { sendWelcomeEmail, sendLoginEmail };
+/**
+ * Send an OTP verification email for account registration.
+ */
+const sendVerificationEmail = async (toEmail, otp) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.warn('SMTP credentials not configured. Skipping verification email.');
+    return;
+  }
+
+  const transporter = createTransporter();
+
+  const mailOptions = {
+    from: `"GeoGuard Security" <${process.env.SMTP_USER}>`,
+    to: toEmail,
+    subject: '🔐 Verify your GeoGuard Account',
+    html: `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 16px; overflow: hidden;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); padding: 40px 30px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">🛡️ GeoGuard</h1>
+          <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 14px;">Account Verification</p>
+        </div>
+
+        <!-- Body -->
+        <div style="padding: 36px 30px;">
+          <h2 style="color: #f1f5f9; margin: 0 0 16px; font-size: 22px;">Verify your email address</h2>
+          <p style="color: #94a3b8; font-size: 15px; line-height: 1.7; margin: 0 0 20px;">
+            Please use the following 6-digit code to complete your registration. This code will expire in 10 minutes.
+          </p>
+
+          <div style="text-align: center; margin: 32px 0;">
+            <div style="display: inline-block; background: rgba(245,158,11,0.1); border: 2px dashed rgba(245,158,11,0.5); padding: 16px 32px; border-radius: 12px;">
+              <span style="color: #f59e0b; font-size: 32px; font-weight: 800; letter-spacing: 6px;">${otp}</span>
+            </div>
+          </div>
+
+          <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px; text-align: center;">
+            If you did not request this code, you can safely ignore this email.
+          </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="padding: 20px 30px; border-top: 1px solid rgba(148,163,184,0.1); text-align: center;">
+          <p style="color: #64748b; font-size: 12px; margin: 0;">Stay safe 🛡️ — The GeoGuard Team</p>
+        </div>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`Verification email sent to ${toEmail}`);
+  } catch (error) {
+    console.error('Error sending verification email:', error.message);
+    throw error;
+  }
+};
+
+module.exports = { sendWelcomeEmail, sendLoginEmail, sendVerificationEmail };

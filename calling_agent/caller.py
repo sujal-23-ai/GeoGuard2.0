@@ -8,6 +8,9 @@ from dotenv import load_dotenv
 load_dotenv()
 BLAND_API_KEY = os.getenv("BLAND_API_KEY")
 
+if not BLAND_API_KEY:
+    print("⚠️  WARNING: BLAND_API_KEY is not set in .env file!")
+
 HEADERS = {
     "authorization": BLAND_API_KEY,
     "Content-Type": "application/json"
@@ -47,10 +50,12 @@ def initiate_emergency_call(username, phone_number, lat, long):
     response = requests.post(url, json=payload, headers=HEADERS)
 
     if response.status_code == 200:
-        return response.json().get("call_id")
+        call_id = response.json().get("call_id")
+        print(f"✅ Call initiated successfully. Call ID: {call_id}")
+        return call_id
     else:
-        print(f"Failed to initiate call. Status Code: {response.status_code}")
-        print(response.text)
+        print(f"❌ Failed to initiate call. Status Code: {response.status_code}")
+        print(f"Response: {response.text}")
         return None
 
 

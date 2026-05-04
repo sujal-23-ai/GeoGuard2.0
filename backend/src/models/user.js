@@ -35,7 +35,14 @@ userSchema.statics.verifyPassword = async function (plain, hash) {
 };
 
 userSchema.statics.addPoints = async function (userId, pts) {
-  return this.findByIdAndUpdate(userId, { $inc: { points: pts } }, { new: true, select: 'points badges' });
+  return this.findByIdAndUpdate(userId, { $inc: { points: pts } }, { returnDocument: 'after', select: 'points badges' });
+};
+
+userSchema.statics.penalizeTrust = async function (userId, deductionAmount) {
+  const user = await this.findById(userId);
+  if (!user) return null;
+  user.trustScore = Math.max(0, user.trustScore - deductionAmount);
+  return user.save();
 };
 
 userSchema.statics.getLeaderboard = function (limit = 20) {

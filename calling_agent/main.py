@@ -22,7 +22,7 @@ class SOSRequest(BaseModel):
     username: str
     latitude: float
     longitude: float
-    emergency_contacts: List[str] = Field(..., min_items=1)
+    emergency_contacts: List[str] = Field(..., min_length=1)
 
 @app.get("/")
 def read_root():

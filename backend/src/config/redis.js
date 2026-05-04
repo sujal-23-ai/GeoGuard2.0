@@ -2,6 +2,7 @@ const { createClient } = require('redis');
 
 let redisClient = null;
 let isConnected = false;
+const memoryCache = new Map();
 
 const createRedisClient = async () => {
   if (redisClient) return redisClient;
@@ -44,7 +45,15 @@ const getRedis = () => redisClient;
 const isRedisConnected = () => isConnected;
 
 const cacheGet = async (key) => {
-  if (!isConnected || !redisClient) return null;
+  if (!isConnected || !redisClient) {
+    const item = memoryCache.get(key);
+    if (!item) return null;
+    if (Date.now() > item.expires) {
+      memoryCache.delete(key);
+      return null;
+    }
+    return item.value;
+  }
   try {
     const val = await redisClient.get(key);
     return val ? JSON.parse(val) : null;
@@ -54,7 +63,10 @@ const cacheGet = async (key) => {
 };
 
 const cacheSet = async (key, value, ttlSeconds = 300) => {
-  if (!isConnected || !redisClient) return;
+  if (!isConnected || !redisClient) {
+    memoryCache.set(key, { value, expires: Date.now() + ttlSeconds * 1000 });
+    return;
+  }
   try {
     await redisClient.setEx(key, ttlSeconds, JSON.stringify(value));
   } catch {
@@ -63,7 +75,10 @@ const cacheSet = async (key, value, ttlSeconds = 300) => {
 };
 
 const cacheDel = async (key) => {
-  if (!isConnected || !redisClient) return;
+  if (!isConnected || !redisClient) {
+    memoryCache.delete(key);
+    return;
+  }
   try {
     await redisClient.del(key);
   } catch {
