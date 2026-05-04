@@ -4,17 +4,17 @@ import { X, AlertTriangle, Bell, Shield } from 'lucide-react';
 import useAppStore from '../../store/useAppStore';
 
 const TYPE_CFG = {
-  incident:    { Icon: AlertTriangle, color: '#f59e0b', bg: 'bg-amber-500/15 border-amber-500/30' },
-  sos:         { Icon: Bell,          color: '#ef4444', bg: 'bg-red-500/15 border-red-500/30' },
+  incident: { Icon: AlertTriangle, color: '#f59e0b', bg: 'bg-amber-500/15 border-amber-500/30' },
+  sos: { Icon: Bell, color: '#ef4444', bg: 'bg-red-500/15 border-red-500/30' },
   danger_zone: { Icon: AlertTriangle, color: '#ef4444', bg: 'bg-red-500/15 border-red-500/30' },
-  default:     { Icon: Shield,        color: '#3b82f6', bg: 'bg-blue-500/15 border-blue-500/30' },
+  default: { Icon: Shield, color: '#3b82f6', bg: 'bg-blue-500/15 border-blue-500/30' },
 };
 
 export default function NotificationToast() {
   const { notifications } = useAppStore();
   const [toast, setToast] = useState(null);
   const prevLenRef = useRef(0);
-  const timerRef  = useRef(null);
+  const timerRef = useRef(null);
 
   useEffect(() => {
     if (notifications.length > prevLenRef.current) {

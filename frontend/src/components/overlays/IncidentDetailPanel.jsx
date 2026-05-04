@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ThumbsUp, ThumbsDown, MapPin, Clock, User, Shield, Eye, EyeOff, Play, ChevronLeft, ChevronRight, Brain, RefreshCw } from 'lucide-react';
+import { X, ThumbsUp, ThumbsDown, MapPin, Clock, User, Shield, Eye, EyeOff, Play, ChevronLeft, ChevronRight, Brain, RefreshCw, Trash2 } from 'lucide-react';
 import { SeverityBadge, CategoryBadge } from '../ui/Badge';
 import { getCategory, timeAgo } from '../../utils/helpers';
-import { useVoteIncident, useConfirmIncident } from '../../hooks/useIncidents';
+import { useVoteIncident, useConfirmIncident, useDeleteIncident } from '../../hooks/useIncidents';
 import useAppStore from '../../store/useAppStore';
 import { getOptimizedUrl } from '../../utils/helpers';
 
 /* ── Media viewer ────────────────────────────────────────── */
 function MediaGallery({ mediaMeta = [], mediaUrls = [] }) {
-  const [idx, setIdx]           = useState(0);
+  const [idx, setIdx] = useState(0);
   const [revealed, setRevealed] = useState({});
 
   // Build unified media list
@@ -155,10 +155,14 @@ function AnimatedCount({ value }) {
 export default function IncidentDetailPanel({ onClose }) {
   // Read directly from store so optimistic updates are reflected instantly
   const incident = useAppStore((s) => s.selectedIncident);
-  const { isAuthenticated } = useAppStore();
+  const { isAuthenticated, user } = useAppStore();
   const voteMutation = useVoteIncident();
   const confirmMutation = useConfirmIncident();
+  const deleteMutation = useDeleteIncident();
   const cat = getCategory(incident?.category);
+
+  const isOwner = user && incident && 
+    (incident.userId?._id === user._id || incident.userId === user._id || incident.userId === user.id);
 
   const handleVote = (voteType) => {
     if (!isAuthenticated || !incident) return;
@@ -339,6 +343,26 @@ export default function IncidentDetailPanel({ onClose }) {
                       </motion.span>
                     )}
                   </span>
+                </motion.button>
+              )}
+
+              {/* ── Delete Report (Owner Only) ─────────────── */}
+              {isOwner && (
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  whileHover={{ scale: 1.01 }}
+                  onClick={() => {
+                    if (window.confirm('Are you sure you want to delete this report?')) {
+                      deleteMutation.mutate(incident.id || incident._id);
+                    }
+                  }}
+                  disabled={deleteMutation.isPending}
+                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl font-semibold text-xs
+                    text-red-400 hover:bg-red-400/10 border border-red-400/20 hover:border-red-400/40
+                    transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Report</span>
                 </motion.button>
               )}
 
