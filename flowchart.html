@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GeoGuard 2.0 — System Flowchart</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#0a0e1a;color:#e0e6f0;min-height:100vh;overflow-x:hidden}
+.bg-glow{position:fixed;width:600px;height:600px;border-radius:50%;filter:blur(150px);opacity:.15;pointer-events:none;z-index:0}
+.bg-glow.g1{top:-200px;left:-100px;background:#6366f1}
+.bg-glow.g2{bottom:-200px;right:-100px;background:#06b6d4}
+.bg-glow.g3{top:40%;left:50%;background:#f43f5e}
+header{text-align:center;padding:48px 20px 24px;position:relative;z-index:1}
+header h1{font-size:2.4rem;font-weight:800;background:linear-gradient(135deg,#818cf8,#06b6d4,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px}
+header p{color:#94a3b8;font-size:1rem;max-width:600px;margin:0 auto}
+.tabs{display:flex;justify-content:center;gap:8px;padding:16px;flex-wrap:wrap;position:relative;z-index:1}
+.tab{padding:10px 20px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);cursor:pointer;font-size:.85rem;font-weight:600;color:#94a3b8;transition:.3s}
+.tab:hover,.tab.active{background:rgba(99,102,241,.2);border-color:#6366f1;color:#c7d2fe}
+.section{display:none;max-width:1100px;margin:0 auto;padding:20px;position:relative;z-index:1}
+.section.active{display:block}
+/* Flow container */
+.flow{display:flex;flex-direction:column;align-items:center;gap:0}
+.node{position:relative;border-radius:16px;padding:20px 28px;text-align:center;max-width:520px;width:100%;animation:fadeUp .5s ease both}
+.node h3{font-size:1rem;font-weight:700;margin-bottom:4px}
+.node p{font-size:.8rem;color:#94a3b8;line-height:1.4}
+.node .icon{font-size:1.6rem;margin-bottom:6px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.arrow{width:2px;height:36px;background:linear-gradient(to bottom,#6366f1,#06b6d4);position:relative;animation:fadeUp .4s ease both}
+.arrow::after{content:'▼';position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);color:#06b6d4;font-size:10px}
+/* Node styles */
+.n-start{background:linear-gradient(135deg,rgba(99,102,241,.25),rgba(6,182,212,.15));border:1px solid rgba(99,102,241,.4)}
+.n-process{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1)}
+.n-decision{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:16px}
+.n-ai{background:linear-gradient(135deg,rgba(168,85,247,.15),rgba(236,72,153,.1));border:1px solid rgba(168,85,247,.35)}
+.n-socket{background:linear-gradient(135deg,rgba(34,211,153,.12),rgba(6,182,212,.1));border:1px solid rgba(34,211,153,.3)}
+.n-danger{background:linear-gradient(135deg,rgba(244,63,94,.15),rgba(251,146,60,.1));border:1px solid rgba(244,63,94,.35)}
+.n-end{background:linear-gradient(135deg,rgba(34,211,153,.2),rgba(6,182,212,.15));border:1px solid rgba(34,211,153,.4)}
+/* Branch */
+.branch{display:flex;gap:20px;width:100%;max-width:700px;justify-content:center}
+.branch .node{max-width:320px;flex:1}
+.branch-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:4px 12px;border-radius:20px;margin-bottom:4px;display:inline-block}
+.label-yes{background:rgba(34,211,153,.15);color:#34d399}
+.label-no{background:rgba(244,63,94,.15);color:#f43f5e}
+/* Horizontal split arrows */
+.arrow-split{display:flex;gap:20px;width:100%;max-width:700px;justify-content:center}
+.arrow-split .arrow{flex:1;max-width:320px}
+/* Architecture diagram */
+.arch{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;max-width:900px;margin:20px auto}
+.arch-card{border-radius:16px;padding:20px;text-align:center;animation:fadeUp .5s ease both}
+.arch-card h4{font-size:.9rem;font-weight:700;margin:8px 0 4px}
+.arch-card p{font-size:.75rem;color:#94a3b8;line-height:1.3}
+.arch-card .icon{font-size:2rem}
+.arch-full{grid-column:1/-1}
+.conn{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;font-size:.75rem;color:#818cf8;font-weight:600}
+.conn svg{width:20px;height:20px}
+/* Legend */
+.legend{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;padding:20px;margin-top:20px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:.75rem;color:#94a3b8}
+.legend-dot{width:12px;height:12px;border-radius:4px}
+footer{text-align:center;padding:40px 20px;color:#475569;font-size:.75rem;position:relative;z-index:1}
+@media(max-width:700px){.branch,.arrow-split{flex-direction:column;align-items:center}.arch{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="bg-glow g1"></div><div class="bg-glow g2"></div><div class="bg-glow g3"></div>
+
+<header>
+  <h1>🛡️ GeoGuard 2.0 — System Flowchart</h1>
+  <p>Real-Time Safety Intelligence Platform — Complete Process Flow</p>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="show('arch')">🏗️ Architecture</div>
+  <div class="tab" onclick="show('auth')">🔐 Authentication</div>
+  <div class="tab" onclick="show('incident')">📍 Incident Reporting</div>
+  <div class="tab" onclick="show('realtime')">⚡ Real-Time Engine</div>
+  <div class="tab" onclick="show('sos')">🚨 SOS Emergency</div>
+  <div class="tab" onclick="show('ai')">🤖 AI & Prediction</div>
+  <div class="tab" onclick="show('admin')">👑 Admin Panel</div>
+</div>
+
+<!-- ===== ARCHITECTURE ===== -->
+<div class="section active" id="arch">
+  <div class="arch">
+    <div class="arch-card n-start"><div class="icon">🌐</div><h4>React Frontend</h4><p>Vite + Zustand + Mapbox GL JS + React Three Fiber + Framer Motion</p></div>
+    <div class="arch-card n-ai"><div class="icon">🔌</div><h4>REST API (Axios)</h4><p>HTTP requests to Express backend with JWT Bearer tokens</p></div>
+    <div class="arch-card n-socket"><div class="icon">⚡</div><h4>WebSocket (Socket.IO)</h4><p>Real-time bidirectional events: incidents, SOS, location, alerts</p></div>
+  </div>
+  <div class="conn">⬇️ ── HTTP + WS ── ⬇️</div>
+  <div class="arch">
+    <div class="arch-card n-process"><div class="icon">🖥️</div><h4>Express.js Server</h4><p>Routes → Controllers → Services → Models</p></div>
+    <div class="arch-card n-decision"><div class="icon">🗄️</div><h4>MongoDB + 2dsphere</h4><p>Mongoose models with geospatial indexes for nearby queries</p></div>
+    <div class="arch-card n-danger"><div class="icon">⚡</div><h4>Redis Cache</h4><p>Incident cache, OTP storage, location share sessions</p></div>
+  </div>
+  <div class="conn">⬇️ ── External Services ── ⬇️</div>
+  <div class="arch">
+    <div class="arch-card n-ai"><div class="icon">🧠</div><h4>Google Gemini AI</h4><p>Incident verification, risk scoring, safety assistant chat</p></div>
+    <div class="arch-card n-danger"><div class="icon">📞</div><h4>Twilio + Calling Agent</h4><p>SOS SMS via Twilio, voice calls via FastAPI agent</p></div>
+    <div class="arch-card n-socket"><div class="icon">☁️</div><h4>Cloudinary + APIs</h4><p>Media uploads, GNews, OpenWeather, Overpass API</p></div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#6366f1"></div>Frontend</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div>Database</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#a855f7"></div>AI Service</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#22d3a1"></div>Real-Time</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f43f5e"></div>Emergency</div>
+  </div>
+</div>
+
+<!-- ===== AUTH FLOW ===== -->
+<div class="section" id="auth">
+  <div class="flow">
+    <div class="node n-start" style="animation-delay:.1s"><div class="icon">🌐</div><h3>User Opens GeoGuard</h3><p>3D landing page with React Three Fiber globe renders</p></div>
+    <div class="arrow" style="animation-delay:.15s"></div>
+    <div class="node n-decision" style="animation-delay:.2s"><div class="icon">🔀</div><h3>Choose Auth Method</h3><p>Email/Password Registration OR Google OAuth 2.0</p></div>
+    <div class="arrow-split">
+      <div class="arrow" style="animation-delay:.25s"></div>
+      <div class="arrow" style="animation-delay:.25s"></div>
+    </div>
+    <div class="branch">
+      <div class="node n-process" style="animation-delay:.3s">
+        <span class="branch-label label-yes">Email Path</span>
+        <h3>📧 Email Verification</h3><p>OTP sent via SMTP → stored in Redis (10 min TTL) → user submits OTP</p>
+      </div>
+      <div class="node n-process" style="animation-delay:.35s">
+        <span class="branch-label label-no">Google Path</span>
+        <h3>🔑 Google OAuth</h3><p>Passport.js redirects to Google → callback creates/finds user</p>
+      </div>
+    </div>
+    <div class="arrow" style="animation-delay:.4s"></div>
+    <div class="node n-process" style="animation-delay:.45s"><div class="icon">🔒</div><h3>Password Hashing & User Creation</h3><p>bcrypt hashes password → User document saved to MongoDB</p></div>
+    <div class="arrow" style="animation-delay:.5s"></div>
+    <div class="node n-ai" style="animation-delay:.55s"><div class="icon">🎫</div><h3>JWT Token Generated</h3><p>jsonwebtoken signs { sub: userId } → sent to frontend</p></div>
+    <div class="arrow" style="animation-delay:.6s"></div>
+    <div class="node n-socket" style="animation-delay:.65s"><div class="icon">📬</div><h3>Welcome Email Sent</h3><p>Async email via Nodemailer (fire-and-forget)</p></div>
+    <div class="arrow" style="animation-delay:.7s"></div>
+    <div class="node n-end" style="animation-delay:.75s"><div class="icon">🗺️</div><h3>Map Dashboard Loads</h3><p>Zustand stores token → Socket.IO connects with JWT → nearby incidents fetched</p></div>
+  </div>
+</div>
+
+<!-- ===== INCIDENT FLOW ===== -->
+<div class="section" id="incident">
+  <div class="flow">
+    <div class="node n-start" style="animation-delay:.1s"><div class="icon">📝</div><h3>User Opens Report Panel</h3><p>Multi-step form: category (10 types) → title → severity (1-5) → description → media</p></div>
+    <div class="arrow" style="animation-delay:.15s"></div>
+    <div class="node n-process" style="animation-delay:.2s"><div class="icon">📍</div><h3>Location Captured</h3><p>GPS auto-fill OR map click-to-place → address reverse-geocoded</p></div>
+    <div class="arrow" style="animation-delay:.25s"></div>
+    <div class="node n-process" style="animation-delay:.3s"><div class="icon">☁️</div><h3>Media Upload (Cloudinary)</h3><p>Images/videos uploaded → URLs + thumbnails stored</p></div>
+    <div class="arrow" style="animation-delay:.35s"></div>
+    <div class="node n-ai" style="animation-delay:.4s"><div class="icon">🔍</div><h3>Text Validation (Gemini AI)</h3><p>Synchronous spam/gibberish check — blocks fake reports instantly</p></div>
+    <div class="arrow" style="animation-delay:.42s"></div>
+    <div class="node n-decision" style="animation-delay:.45s"><div class="icon">❓</div><h3>Is Text Valid?</h3><p>AI checks for spam, gibberish, and irrelevant content</p></div>
+    <div class="arrow-split">
+      <div class="arrow" style="animation-delay:.48s"></div>
+      <div class="arrow" style="animation-delay:.48s"></div>
+    </div>
+    <div class="branch">
+      <div class="node n-end" style="animation-delay:.5s">
+        <span class="branch-label label-yes">✅ Valid</span>
+        <h3>Incident Created</h3><p>Saved to MongoDB with 2dsphere index → +10 points to user → Redis cache invalidated</p>
+      </div>
+      <div class="node n-danger" style="animation-delay:.52s">
+        <span class="branch-label label-no">❌ Spam</span>
+        <h3>Report Rejected</h3><p>400 error returned with reason — report not saved</p>
+      </div>
+    </div>
+    <div class="arrow" style="animation-delay:.55s"></div>
+    <div class="node n-socket" style="animation-delay:.6s"><div class="icon">📡</div><h3>Socket.IO Broadcast</h3><p>io.emit('new_incident') → all connected clients see it on map instantly</p></div>
+    <div class="arrow" style="animation-delay:.65s"></div>
+    <div class="node n-ai" style="animation-delay:.7s"><div class="icon">🧠</div><h3>Background AI Verification</h3><p>Async Gemini analysis: confidence score, risk level, AI tags, sensitivity flag</p></div>
+    <div class="arrow" style="animation-delay:.72s"></div>
+    <div class="node n-decision" style="animation-delay:.75s"><div class="icon">🤖</div><h3>AI Verdict</h3><p>Is the incident genuine or fabricated?</p></div>
+    <div class="arrow-split">
+      <div class="arrow" style="animation-delay:.78s"></div>
+      <div class="arrow" style="animation-delay:.78s"></div>
+    </div>
+    <div class="branch">
+      <div class="node n-end" style="animation-delay:.8s">
+        <span class="branch-label label-yes">✅ Genuine</span>
+        <h3>Enriched with AI Data</h3><p>aiConfidence, riskScore, riskLevel, aiTags saved → update broadcast</p>
+      </div>
+      <div class="node n-danger" style="animation-delay:.82s">
+        <span class="branch-label label-no">🚫 Fake</span>
+        <h3>Marked Fake & Deactivated</h3><p>isActive=false → user loses 10pts + 20 trust penalty → removed from map</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== REALTIME ENGINE ===== -->
+<div class="section" id="realtime">
+  <div class="flow">
+    <div class="node n-start" style="animation-delay:.1s"><div class="icon">🔌</div><h3>Socket.IO Connection</h3><p>Client connects with JWT token in handshake → server authenticates via middleware</p></div>
+    <div class="arrow" style="animation-delay:.15s"></div>
+    <div class="node n-process" style="animation-delay:.2s"><div class="icon">🗺️</div><h3>Join Geographic Room</h3><p>Client emits 'join_area' with {lng, lat} → joins room like "area:77:28"</p></div>
+    <div class="arrow" style="animation-delay:.25s"></div>
+    <div class="node n-socket" style="animation-delay:.3s"><div class="icon">📍</div><h3>Location Tracking</h3><p>'update_location' → User.lastLocation updated → stored in userLocations Map</p></div>
+    <div class="arrow" style="animation-delay:.35s"></div>
+    <div class="node n-ai" style="animation-delay:.4s"><div class="icon">⏱️</div><h3>Danger Zone Check (30s interval)</h3><p>Server queries high-severity incidents (≥4) from last 2 hours</p></div>
+    <div class="arrow" style="animation-delay:.45s"></div>
+    <div class="node n-decision" style="animation-delay:.5s"><div class="icon">📏</div><h3>Haversine Distance Check</h3><p>Is user within 800m of a high-risk incident?</p></div>
+    <div class="arrow-split">
+      <div class="arrow" style="animation-delay:.55s"></div>
+      <div class="arrow" style="animation-delay:.55s"></div>
+    </div>
+    <div class="branch">
+      <div class="node n-danger" style="animation-delay:.6s">
+        <span class="branch-label label-yes">⚠️ In Danger Zone</span>
+        <h3>Alert Emitted</h3><p>'danger_zone_alert' → "⚠️ High-risk incident 350m away: ..."</p>
+      </div>
+      <div class="node n-end" style="animation-delay:.62s">
+        <span class="branch-label label-no">✅ Safe</span>
+        <h3>No Alert</h3><p>User continues normal operation</p>
+      </div>
+    </div>
+    <div class="arrow" style="animation-delay:.65s"></div>
+    <div class="node n-socket" style="animation-delay:.7s"><div class="icon">📡</div><h3>Live Event Types</h3><p>new_incident • update_incident • sos_alert • user_count • danger_zone_alert • share_update</p></div>
+  </div>
+</div>
+
+<!-- ===== SOS FLOW ===== -->
+<div class="section" id="sos">
+  <div class="flow">
+    <div class="node n-danger" style="animation-delay:.1s"><div class="icon">🚨</div><h3>User Taps SOS Button</h3><p>One-tap emergency activation from map dashboard</p></div>
+    <div class="arrow" style="animation-delay:.15s"></div>
+    <div class="node n-process" style="animation-delay:.2s"><div class="icon">📍</div><h3>Location + Contacts Sent</h3><p>POST /api/users/sos with {lng, lat, message, emergency_contacts}</p></div>
+    <div class="arrow" style="animation-delay:.25s"></div>
+    <div class="node n-process" style="animation-delay:.3s"><div class="icon">💾</div><h3>SOS Alert Saved</h3><p>SosAlert document created in MongoDB with userId + GeoJSON location</p></div>
+    <div class="arrow" style="animation-delay:.35s"></div>
+    <div class="node n-socket" style="animation-delay:.4s"><div class="icon">📡</div><h3>Broadcast to All Clients</h3><p>io.emit('sos_alert') → all connected users see emergency overlay</p></div>
+    <div class="arrow" style="animation-delay:.45s"></div>
+    <div class="node n-danger" style="animation-delay:.5s"><div class="icon">📱</div><h3>SMS via Twilio</h3><p>Emergency contacts receive SMS with name + Google Maps link (non-blocking)</p></div>
+    <div class="arrow" style="animation-delay:.55s"></div>
+    <div class="node n-ai" style="animation-delay:.6s"><div class="icon">📞</div><h3>Voice Call Escalation</h3><p>FastAPI calling agent (Bland AI) places automated voice call to contacts</p></div>
+    <div class="arrow" style="animation-delay:.65s"></div>
+    <div class="node n-end" style="animation-delay:.7s"><div class="icon">✅</div><h3>Emergency Response Active</h3><p>Community alerted + contacts notified + call placed — full escalation chain complete</p></div>
+  </div>
+</div>
+
+<!-- ===== AI FLOW ===== -->
+<div class="section" id="ai">
+  <div class="flow">
+    <div class="node n-ai" style="animation-delay:.1s"><div class="icon">🧠</div><h3>Gemini AI Integration</h3><p>Google Gemini 2.0 Flash powers all AI features via structured prompts</p></div>
+    <div class="arrow" style="animation-delay:.15s"></div>
+    <div class="node n-decision" style="animation-delay:.2s"><div class="icon">🔀</div><h3>AI Service Router</h3><p>Three distinct AI pipelines based on request type</p></div>
+    <div class="arrow-split">
+      <div class="arrow" style="animation-delay:.25s"></div>
+      <div class="arrow" style="animation-delay:.25s"></div>
+      <div class="arrow" style="animation-delay:.25s"></div>
+    </div>
+    <div class="branch">
+      <div class="node n-process" style="animation-delay:.3s">
+        <span class="branch-label label-yes">Verification</span>
+        <h3>🔍 Incident Check</h3><p>Validates reports: confidence score, fake detection, risk level, AI tags</p>
+      </div>
+      <div class="node n-process" style="animation-delay:.32s">
+        <span class="branch-label label-yes">Prediction</span>
+        <h3>📊 Risk Scoring</h3><p>Area risk analysis using incidents + weather + traffic data fusion</p>
+      </div>
+      <div class="node n-process" style="animation-delay:.34s">
+        <span class="branch-label label-yes">Assistant</span>
+        <h3>💬 Safety Chat</h3><p>"Is it safe?" queries answered with context-aware safety summaries</p>
+      </div>
+    </div>
+    <div class="arrow" style="animation-delay:.4s"></div>
+    <div class="node n-socket" style="animation-delay:.45s"><div class="icon">🔄</div><h3>Data Fusion Service</h3><p>Combines: incident density + OpenWeather data + traffic patterns + time-of-day</p></div>
+    <div class="arrow" style="animation-delay:.5s"></div>
+    <div class="node n-end" style="animation-delay:.55s"><div class="icon">📈</div><h3>Risk Output</h3><p>Risk level (low/medium/high/critical) + confidence % + explainable summary</p></div>
+  </div>
+</div>
+
+<!-- ===== ADMIN FLOW ===== -->
+<div class="section" id="admin">
+  <div class="flow">
+    <div class="node n-start" style="animation-delay:.1s"><div class="icon">👑</div><h3>Admin/Moderator Login</h3><p>Role-based access: only users with role 'admin' or 'moderator' see the panel</p></div>
+    <div class="arrow" style="animation-delay:.15s"></div>
+    <div class="node n-process" style="animation-delay:.2s"><div class="icon">📊</div><h3>Dashboard Stats</h3><p>GET /api/admin/stats → total users, incidents, active reports, SOS count</p></div>
+    <div class="arrow" style="animation-delay:.25s"></div>
+    <div class="node n-decision" style="animation-delay:.3s"><div class="icon">🔀</div><h3>Admin Action</h3><p>Choose: manage incidents OR manage users</p></div>
+    <div class="arrow-split">
+      <div class="arrow" style="animation-delay:.35s"></div>
+      <div class="arrow" style="animation-delay:.35s"></div>
+    </div>
+    <div class="branch">
+      <div class="node n-ai" style="animation-delay:.4s">
+        <span class="branch-label label-yes">Incidents</span>
+        <h3>📋 Incident Moderation</h3><p>Verify/reject reports • Toggle visibility • View AI confidence • Delete spam</p>
+      </div>
+      <div class="node n-danger" style="animation-delay:.42s">
+        <span class="branch-label label-no">Users</span>
+        <h3>👥 User Management</h3><p>Ban/unban users • Change roles (user↔mod↔admin) • Adjust trust scores</p>
+      </div>
+    </div>
+    <div class="arrow" style="animation-delay:.45s"></div>
+    <div class="node n-socket" style="animation-delay:.5s"><div class="icon">📡</div><h3>Real-Time Sync</h3><p>All admin actions broadcast via Socket.IO → UI updates for all clients instantly</p></div>
+    <div class="arrow" style="animation-delay:.55s"></div>
+    <div class="node n-end" style="animation-delay:.6s"><div class="icon">✅</div><h3>Community Moderated</h3><p>Clean, verified incident data → safer, more trustworthy platform</p></div>
+  </div>
+</div>
+
+<footer>
+  <p>GeoGuard 2.0 — Real-Time Safety Intelligence Platform • Built with React, Node.js, Socket.IO, MongoDB, Redis, Gemini AI</p>
+</footer>
+
+<script>
+function show(id){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+  // Re-trigger animations
+  document.getElementById(id).querySelectorAll('.node,.arrow').forEach((el,i)=>{
+    el.style.animation='none';el.offsetHeight;
+    el.style.animation=`fadeUp .5s ease ${i*0.06}s both`;
+  });
+}
+</script>
+</body>
+</html>
